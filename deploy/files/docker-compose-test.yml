@@ -1,0 +1,95 @@
+version: "2"
+services:
+    app:
+        container_name: pioneer_${ENVIRON}_app
+        image: ${APP_IMAGE}
+        depends_on:
+            - "db"
+        hostname: app
+        env_file:
+            - app.env
+        environment:
+            - DB_HOST_WRITE=db
+            - DB_HOST_READ=db
+            - DB_HOST=db
+            - DB_PORT=5432
+        restart: always
+        volumes:
+            - app-logs:/var/www/project/storage/logs
+            - ./private:/var/www/project/private:ro
+            - ./custom.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+        networks:
+            - nc
+    db:
+        container_name: pioneer_${ENVIRON}_db
+        image: postgres:13.3-alpine
+        env_file:
+            - db.env
+        environment:
+            - PGDATA=/data/postgres
+        ports:
+            - "65432:5432"    
+        volumes:
+            - db-data:/data/postgres
+            - ./database/tempdir:/home/db-data
+        networks:
+            - nc
+        restart: always
+
+    redis:
+        container_name: pioneer_${ENVIRON}_redis
+        image: redis:6.2-alpine
+        networks:
+            - nc
+        restart: always
+
+    web:
+        container_name: pioneer_${ENVIRON}_web
+        image: ${WFE_IMAGE}
+        cap_add:
+            - NET_ADMIN
+            - NET_RAW
+        environment:
+            - PUID=1000
+            - PGID=1000
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./nginx:/etc/nginx/conf.d
+            - nginx_logs:/root/app/log
+            - ftp-data:/var/www/ext:ro
+        networks:
+            - nc
+        depends_on:
+            - "app"
+        restart: always
+    
+    fs:
+        container_name: pioneer_${ENVIRON}_fs
+        image: atmoz/sftp
+        volumes:
+            - ftp-data:/home/$FS_USER/data
+        command:
+            $FS_USER:$FS_PASSWORD:::data
+        networks:
+            - nc
+        restart: always
+
+volumes:
+    db-data:
+    app-logs:
+        name: app_logs_${ENVIRON}
+    nginx_logs:
+        name: nginx_logs_${ENVIRON}
+    ftp-data:
+        name: ftp-data_${ENVIRON}
+
+networks:
+    nc:
+        name: nc_pioneer_${ENVIRON}
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+            - subnet:  10.103.0.1/24

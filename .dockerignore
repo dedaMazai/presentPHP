@@ -1,0 +1,10 @@
+.git
+.editorconfig
+**/.gitattributes
+**/.gitignore
+.gitlab-ci.yml
+README.md
+.dockerignore
+database/pioneer.dump
+deploy
+docs

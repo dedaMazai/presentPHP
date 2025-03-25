@@ -1,0 +1,115 @@
+- name: Деплой Пионер на тестовые сервера
+  hosts: testservers
+  vars:
+    app_image: "{{ lookup('ansible.builtin.env', 'APP_IMAGE') }}"
+    wfe_image: "{{ lookup('ansible.builtin.env', 'WFE_IMAGE') }}"
+    registry_host: "{{ lookup('ansible.builtin.env', 'REGISTRY_HOST') }}"
+    registry_username: "{{ lookup('ansible.builtin.env', 'REGISTRY_USERNAME') }}"
+    registry_password: "{{ lookup('ansible.builtin.env', 'REGISTRY_PASSWORD') }}"
+  tasks:
+    - name: Check environment variables
+      ansible.builtin.assert:
+        that:
+          - app_image is defined and app_image|trim != ''
+          - wfe_image is defined and wfe_image|trim != ''
+          - registry_host is defined and registry_host|trim != ''
+          - registry_username is defined and registry_username|trim != ''
+          - registry_password is defined and registry_password|trim != ''
+        fail_msg: "Не указаны необходимые переменные окружения"
+        success_msg: "Все переменные окружения указаны"
+    - name: Create new environment
+      block:
+        - name: Remove temp project folder if exists
+          ansible.builtin.file:
+            path: ~/run-new
+            state: absent
+        - name: Create temp project folder
+          ansible.builtin.file:
+            path: ~/run-new
+            state: directory
+            mode: "0755"
+        - name: Create configuration files
+          block:
+            - name: Copy application environment file
+              ansible.builtin.copy:
+                src: ~/config/app.env
+                dest: ~/run-new/app.env
+                remote_src: yes
+            - name: Copy database environment file
+              ansible.builtin.copy:
+                src: ~/config/db.env
+                dest: ~/run-new/db.env
+                remote_src: yes
+            - name: Copy docker environment file
+              ansible.builtin.copy:
+                src: ~/config/docker.env
+                dest: ~/run-new/.env
+                remote_src: yes
+            - name: Copy PHP config file
+              ansible.builtin.copy:
+                src: ~/config/php.ini
+                dest: ~/run-new/custom.ini
+                remote_src: yes
+            - name: Copy private folder
+              ansible.builtin.copy:
+                src: ~/private/
+                dest: ~/run-new/private/
+                remote_src: yes
+        - name: Copy DB dump files
+          ansible.builtin.copy:
+            src: ../../docker/database/
+            dest: ~/run-new/database/
+        - name: Copy NGINX config files
+          ansible.builtin.copy:
+            src: ../../docker/hosts/
+            dest: ~/run-new/nginx/
+        - name: Copy compose file
+          ansible.builtin.copy:
+            src: docker-compose-test.yml
+            dest: ~/run-new/docker-compose.yml
+    - name: Deploy new envionament
+      block:
+        - name: Login to registry
+          community.docker.docker_login:
+            registry_url: "{{ registry_host }}"
+            username: "{{ registry_username }}"
+            password: "{{ registry_password }}"
+            reauthorize: true
+        - name: Pull new application image
+          community.docker.docker_image:
+            name: "{{ app_image }}"
+            source: pull
+        - name: Pull new web image
+          community.docker.docker_image:
+            name: "{{ wfe_image }}"
+            source: pull
+        - name: Stop environment
+          community.docker.docker_compose:
+            project_src: ~/run/
+            state: absent
+            remove_images: local
+        - name: Remove old project folder
+          ansible.builtin.file:
+            path: ~/run
+            state: absent
+        - name: Copy project folder
+          ansible.builtin.copy:
+            src: ~/run-new/
+            dest: ~/run/
+            remote_src: yes
+        - name: Remove temp project folder
+          ansible.builtin.file:
+            path: ~/run-new
+            state: absent
+        - name: Start environment
+          community.docker.docker_compose:
+            project_src: ~/run/
+            state: present
+      always:
+        - name: Logout from registry
+          community.docker.docker_login:
+            registry_url: "{{ registry_host }}"
+            state: absent
+      environment:
+        APP_IMAGE: "{{ app_image }}"
+        WFE_IMAGE: "{{ wfe_image }}"

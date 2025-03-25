@@ -1,0 +1,421 @@
+variables:
+  BASE_APP_NAME: "php_base"
+  APP_NAME: "pioneer"
+  WFE_NAME: "wfe"
+  DB_IMAGE: "postgres:13.3-alpine"
+  DOCKER_HOST_64022: "docker -H 31.44.95.115:64022 --tls"
+  DOCKER_HOST_65022: "docker -H 31.44.95.115:65022 --tls"
+  BASE_APP_IMAGE_NAME_PATH: ${REGISTRY_HOST}/pioneer/${BASE_APP_NAME}
+  PIONEER_BASE_APP_IMAGE_NAME_PATH: ${PIONEER_REGISTRY}/pioneer/${BASE_APP_NAME}
+  APP_IMAGE_NAME_PATH: ${REGISTRY_HOST}/pioneer/${APP_NAME}
+  PIONEER_APP_IMAGE_NAME_PATH: ${PIONEER_REGISTRY}/pioneer/${APP_NAME}
+  WFE_IMAGE_NAME_PATH: ${REGISTRY_HOST}/pioneer/${WFE_NAME}
+  PIONEER_WFE_IMAGE_NAME_PATH: ${PIONEER_REGISTRY}/pioneer/${WFE_NAME}
+  BASE_APP_IMAGE_NAME: ${BASE_APP_IMAGE_NAME_PATH}:${CI_COMMIT_SHORT_SHA}
+  PIONEER_BASE_APP_IMAGE_NAME: ${PIONEER_BASE_APP_IMAGE_NAME_PATH}:${CI_COMMIT_SHORT_SHA}
+  APP_TEST_IMAGE_NAME: ${APP_IMAGE_NAME_PATH}:dev${CI_COMMIT_SHORT_SHA}
+  PIONEER_APP_TEST_IMAGE_NAME: ${PIONEER_APP_IMAGE_NAME_PATH}:dev${CI_COMMIT_SHORT_SHA}
+  APP_STAGE_IMAGE_NAME: ${APP_IMAGE_NAME_PATH}:stage${CI_COMMIT_SHORT_SHA}
+  PIONEER_APP_STAGE_IMAGE_NAME: ${PIONEER_APP_IMAGE_NAME_PATH}:stage${CI_COMMIT_SHORT_SHA}
+  APP_PROD_IMAGE_NAME: ${APP_IMAGE_NAME_PATH}:prod${CI_COMMIT_SHORT_SHA}
+  PIONEER_APP_PROD_IMAGE_NAME: ${PIONEER_APP_IMAGE_NAME_PATH}:prod${CI_COMMIT_SHORT_SHA}
+  WFE_TEST_IMAGE_NAME: ${WFE_IMAGE_NAME_PATH}:dev${CI_COMMIT_SHORT_SHA}
+  PIONEER_WFE_TEST_IMAGE_NAME: ${PIONEER_WFE_IMAGE_NAME_PATH}:dev${CI_COMMIT_SHORT_SHA}
+  WFE_STAGE_IMAGE_NAME: ${WFE_IMAGE_NAME_PATH}:stage${CI_COMMIT_SHORT_SHA}
+  PIONEER_WFE_STAGE_IMAGE_NAME: ${PIONEER_WFE_IMAGE_NAME_PATH}:stage${CI_COMMIT_SHORT_SHA}
+  WFE_PROD_IMAGE_NAME: ${WFE_IMAGE_NAME_PATH}:prod${CI_COMMIT_SHORT_SHA}
+  PIONEER_WFE_PROD_IMAGE_NAME: ${PIONEER_WFE_IMAGE_NAME_PATH}:prod${CI_COMMIT_SHORT_SHA}
+  DOCKER_BUILDKIT: "1"
+
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH == 'master' || $CI_COMMIT_BRANCH == 'develop' || $CI_COMMIT_BRANCH == 'preprod'
+
+# List of stages for jobs, and their order of execution
+stages:
+  - build-base
+  - set-packages
+  - test
+  - build-app
+  - build-docker
+  - deploy
+
+# Templates ####
+
+.build-image:
+  stage: build-docker
+  image: docker
+  after_script:
+    - docker rmi $LATEST_TAG
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+      variables:
+        LATEST_TAG: $TEST_IMAGE_NAME
+        PIONEER_LATEST_TAG: $PIONEER_TEST_IMAGE_NAME
+    - if: $CI_COMMIT_BRANCH == "preprod"
+      variables:
+        LATEST_TAG: $STAGE_IMAGE_NAME
+        PIONEER_LATEST_TAG: $PIONEER_STAGE_IMAGE_NAME
+    - if: $CI_COMMIT_BRANCH == "master"
+      variables:
+        LATEST_TAG: $PROD_IMAGE_NAME
+        PIONEER_LATEST_TAG: $PIONEER_PROD_IMAGE_NAME
+
+################
+
+# Anchors ######
+.stop_containers: &stop_containers
+  - $REMOTE_DOCKER_HOST pull "$APP_IMAGE"
+  - $REMOTE_DOCKER_HOST pull "$WFE_IMAGE"
+  - $REMOTE_DOCKER_HOST stop pioneer_${ENVIRON}_web || true
+  - $REMOTE_DOCKER_HOST stop pioneer_${ENVIRON}_app || true
+  - $REMOTE_DOCKER_HOST rm pioneer_${ENVIRON}_web || true
+  - $REMOTE_DOCKER_HOST rm pioneer_${ENVIRON}_app || true
+
+.start_containers_stage: &start_containers_stage
+  - ssh pioneer@$RELAY_HOST "$REMOTE_DOCKER_HOST run -d
+      --name pioneer_${ENVIRON}_app
+      --hostname app
+      --network pioneer_${ENVIRON}_nc
+      --env-file ~/config_${ENVIRON}/app.env
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/custom.ini,target=/usr/local/etc/php/conf.d/custom.ini,readonly
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/private,target=/var/www/project/private,readonly
+      --mount source=pioneer_${ENVIRON}_app-logs,target=/var/www/project/storage/logs
+      $APP_IMAGE"
+
+  - ssh pioneer@$RELAY_HOST "$REMOTE_DOCKER_HOST run -d
+      --name pioneer_${ENVIRON}_web
+      --hostname web
+      --network pioneer_${ENVIRON}_nc
+      --env-file ~/config_${ENVIRON}/web.env
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/nginx,target=/etc/nginx/conf.d,readonly
+      --mount source=pioneer_${ENVIRON}_web-logs,target=/root/app/log
+      --mount source=pioneer_${ENVIRON}_ftp-data,target=/var/www/ext,readonly
+      -p $EXPOSE_PORT:80
+      $WFE_IMAGE"
+
+.start_containers_prod: &start_containers_prod
+  - ssh pioneer@$RELAY_HOST "$REMOTE_DOCKER_HOST run -d
+      --name pioneer_${ENVIRON}_app
+      --hostname app
+      --network pioneer_${ENVIRON}_nc
+      --env-file ~/config_${ENVIRON}/app.env
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/custom.ini,target=/usr/local/etc/php/conf.d/custom.ini,readonly
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/private,target=/var/www/project/private,readonly
+      --mount source=pioneer_${ENVIRON}_app-logs,target=/var/www/project/storage/logs
+      $APP_IMAGE"
+
+  - ssh pioneer@$RELAY_HOST "$REMOTE_DOCKER_HOST run -d
+      --name pioneer_${ENVIRON}_web
+      --hostname web
+      --network pioneer_${ENVIRON}_nc
+      --env-file ~/config_${ENVIRON}/web.env
+      --mount type=bind,source=/home/lt/${ENVIRON}_config/nginx,target=/etc/nginx/conf.d,readonly
+      --mount source=pioneer_${ENVIRON}_web-logs,target=/root/app/log
+      -p $EXPOSE_PORT:80
+      $WFE_IMAGE"
+################
+
+create-base-image:
+  stage: build-base
+  image: docker
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USERNAME --password-stdin $REGISTRY_HOST
+    - echo $PIONEER_REGISTRY_PASS | docker login -u $PIONEER_REGISTRY_USER --password-stdin $PIONEER_REGISTRY
+    - FILE_HASH=$(sha256sum ${CI_PROJECT_DIR}/docker/images/php/Dockerfile-base | sed -E 's|^([^\s]+)\s+.+$|\1|g')
+    - IMG_NAME="${BASE_APP_IMAGE_NAME_PATH}:h-${FILE_HASH}"
+    - echo $IMG_NAME
+    - docker build
+      -t $BASE_APP_IMAGE_NAME
+      -t $PIONEER_BASE_APP_IMAGE_NAME
+      -f ${CI_PROJECT_DIR}/docker/images/php/Dockerfile-base
+      $CI_PROJECT_DIR
+    - docker push $BASE_APP_IMAGE_NAME
+    - docker push $PIONEER_BASE_APP_IMAGE_NAME
+  after_script:
+    - docker rmi $BASE_APP_IMAGE_NAME || true
+    - docker rmi $PIONEER_BASE_APP_IMAGE_NAME || true
+
+artifact-storage-export:
+  stage: build-base
+  image: alpine/curl
+  script:
+    - tar czvf buildroot-exported-content.tar.gz app/ bootstrap/ config/ database/ deploy/ docker/ docs/ public/ resources/ routes/ tests/ package.json startup.sh webpack.mix.js yarn.lock phpunit.xml deploy.php grumphp.yml
+    - >
+        curl --location --user "rmx-git-push:$PIONEER_GITLAB_ARTIFACT_TOKEN" --upload-file buildroot-exported-content.tar.gz "https://git.pioneer.ru/api/v4/projects/25/packages/generic/buildroot-exported-content/1.0.0/buildroot-exported-content.tar.gz"
+    - rm buildroot-exported-content.tar.gz
+
+install-php-packages:
+  stage: set-packages
+  image: $BASE_APP_IMAGE_NAME
+  needs:
+    - create-base-image
+  script:
+    - composer install --prefer-dist
+  cache:
+    key:
+      files:
+        - composer.json
+      prefix: composer
+    paths:
+      - vendor
+  artifacts:
+    name: composer-vendor
+    public: false
+    expire_in: 1 day
+    paths:
+      - vendor
+
+install-node-packages:
+  stage: set-packages
+  image: node:14.21.0-alpine
+  needs: []
+  script:
+    - yarn install
+  cache:
+    key:
+      files:
+        - package.json
+      prefix: node
+    paths:
+      - node_modules
+  artifacts:
+    name: node-modules
+    public: false
+    expire_in: 1 day
+    paths:
+      - node_modules
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "preprod"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - changes:
+      - package.json
+
+php-unittests:
+  stage: test
+  image: $BASE_APP_IMAGE_NAME
+  needs:
+    - install-php-packages
+  before_script:
+    - apk add postgresql-client
+  script:
+    - psql -v ON_ERROR_STOP=1 --host test_db --username "postgres" -c "CREATE ROLE pioneer_test WITH LOGIN;"
+    - psql -v ON_ERROR_STOP=1 --host test_db --username "postgres" -c "CREATE DATABASE pioneer_test WITH OWNER = pioneer_test ENCODING = 'UTF8';"
+    - php artisan migrate:fresh --database=pgsql --env=testing
+    - ./vendor/bin/phpunit --coverage-text --coverage-cobertura=coverage.cobertura.xml --color=never --log-junit=report.junit.xml
+  coverage: /^\s*Lines:\s*\d+.\d+\%/
+  services:
+    - name: $DB_IMAGE
+      alias: test_db
+      variables:
+        POSTGRES_HOST_AUTH_METHOD: trust
+  variables:
+    XDEBUG_MODE: coverage
+    DB_HOST_WRITE: test_db
+    DB_HOST_READ: test_db
+    DB_HOST: test_db
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.cobertura.xml
+      junit:
+        - report.junit.xml
+
+php-codestandard:
+  stage: test
+  image: php:8.1-fpm-alpine
+  needs:
+    - install-php-packages
+  script:
+    - ./vendor/bin/phpcs --standard=phpcs_custom_ruleset.xml --extensions=php --ignore=app/Support/helpers.php app
+
+build-yarn:
+  stage: build-app
+  image: node:14.21.0-alpine
+  needs:
+    - install-node-packages
+  before_script:
+    - npx browserslist@latest --update-db
+  script:
+    - yarn run prod
+  artifacts:
+    name: node-build
+    public: false
+    expire_in: 1 day
+    paths:
+      - public/css
+      - public/js
+      - public/mix-manifest.json
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "preprod"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - changes:
+      - package.json
+      - resources/js/*
+      - resources/sass/*
+
+setup-laravel:
+  stage: build-app
+  image: $BASE_APP_IMAGE_NAME
+  needs:
+    - install-php-packages
+  dependencies:
+    - install-php-packages
+  script:
+    - php artisan telescope:install
+  artifacts:
+    name: laravel-build
+    public: false
+    expire_in: 1 day
+    paths:
+      - public/vendor/telescope
+  rules:
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH == "preprod"
+    - if: $CI_COMMIT_BRANCH == "master"
+
+build-docker-app:
+  extends: .build-image
+  dependencies:
+    - install-php-packages
+    - setup-laravel
+    - build-yarn
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USERNAME --password-stdin $REGISTRY_HOST
+    - echo $PIONEER_REGISTRY_PASS | docker login -u $PIONEER_REGISTRY_USER --password-stdin $PIONEER_REGISTRY
+    - docker build
+      -t $LATEST_TAG
+      -t $PIONEER_LATEST_TAG
+      -f ${CI_PROJECT_DIR}/docker/images/php/Dockerfile-buildup
+      --build-arg BASE_IMAGE=${BASE_APP_IMAGE_NAME}
+      $CI_PROJECT_DIR
+    - docker push $LATEST_TAG
+    - docker push $PIONEER_LATEST_TAG
+  variables:
+    TEST_IMAGE_NAME: $APP_TEST_IMAGE_NAME
+    PIONEER_TEST_IMAGE_NAME: $PIONEER_APP_TEST_IMAGE_NAME
+    STAGE_IMAGE_NAME: $APP_STAGE_IMAGE_NAME
+    PIONEER_STAGE_IMAGE_NAME: $PIONEER_APP_STAGE_IMAGE_NAME
+    PROD_IMAGE_NAME: $APP_PROD_IMAGE_NAME
+    PIONEER_PROD_IMAGE_NAME: $PIONEER_APP_PROD_IMAGE_NAME
+
+build-docker-wfe:
+  extends: .build-image
+  dependencies:
+    - setup-laravel
+    - build-yarn
+  before_script:
+    - echo "public/index.php" >> .dockerignore
+  script:
+    - echo $REGISTRY_PASSWORD | docker login -u $REGISTRY_USERNAME --password-stdin $REGISTRY_HOST
+    - echo $PIONEER_REGISTRY_PASS | docker login -u $PIONEER_REGISTRY_USER --password-stdin $PIONEER_REGISTRY
+    - docker build
+      -t $LATEST_TAG
+      -t $PIONEER_LATEST_TAG
+      -f $CI_PROJECT_DIR/docker/images/nginx/Dockerfile
+      $CI_PROJECT_DIR
+    - docker push $LATEST_TAG
+    - docker push $PIONEER_LATEST_TAG
+  variables:
+    TEST_IMAGE_NAME: $WFE_TEST_IMAGE_NAME
+    PIONEER_TEST_IMAGE_NAME: $PIONEER_WFE_TEST_IMAGE_NAME
+    STAGE_IMAGE_NAME: $WFE_STAGE_IMAGE_NAME
+    PIONEER_STAGE_IMAGE_NAME: $PIONEER_WFE_STAGE_IMAGE_NAME
+    PROD_IMAGE_NAME: $WFE_PROD_IMAGE_NAME
+    PIONEER_PROD_IMAGE_NAME: $PIONEER_WFE_PROD_IMAGE_NAME
+
+deploy-test:
+  stage: deploy
+  image: romcheck/ansible
+  dependencies: []
+  environment:
+    name: test
+    deployment_tier: testing
+  variables:
+    APP_IMAGE: $APP_TEST_IMAGE_NAME
+    WFE_IMAGE: $WFE_TEST_IMAGE_NAME
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - cp $SERVER_KEY_FILE_TEST ~/.ssh/id_rsa
+    - chmod 400 ~/.ssh/id_rsa
+    - ansible-playbook -i $INVENTORY_FILE_TEST deploy/deploy-test.yml
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'develop'
+
+deploy-stage:
+  stage: deploy
+  variables:
+    APP_IMAGE: $APP_STAGE_IMAGE_NAME
+    WFE_IMAGE: $WFE_STAGE_IMAGE_NAME
+    ENVIRON: "stage"
+    REMOTE_DOCKER_HOST: $DOCKER_HOST_64022
+    RELAY_HOST: "10.77.15.164"
+    EXPOSE_PORT: 8081
+  dependencies: []
+  environment:
+    name: preprod
+    deployment_tier: staging
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan 10.77.15.164 >> ~/.ssh/known_hosts
+    - cp $SERVER_KEY_FILE_TEST ~/.ssh/id_rsa
+    - chmod 400 ~/.ssh/id_rsa
+    - mkdir -p ~/.docker
+    - echo "$CA_PEM" | tr -d '\r' > ~/.docker/ca.pem
+    - echo "$CERT_PEM" | tr -d '\r' > ~/.docker/cert.pem
+    - echo "$KEY_PEM" | tr -d '\r' > ~/.docker/key.pem
+    - cd ~ && $REMOTE_DOCKER_HOST ps
+    - echo "$REGISTRY_PASSWORD" | $REMOTE_DOCKER_HOST login -u "$REGISTRY_USERNAME" --password-stdin "$REGISTRY_HOST"
+    - *stop_containers
+    - *start_containers_stage
+  after_script:
+    - $REMOTE_DOCKER_HOST logout "$REGISTRY_HOST"
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'preprod'
+
+deploy-prod:
+  stage: deploy
+  variables:
+    APP_IMAGE: $APP_PROD_IMAGE_NAME
+    WFE_IMAGE: $WFE_PROD_IMAGE_NAME
+    ENVIRON: "prod"
+    RELAY_HOST: "10.77.15.164"
+    EXPOSE_PORT: 8080
+  dependencies: []
+  environment:
+    name: prod
+    deployment_tier: production
+  script:
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $RELAY_HOST >> ~/.ssh/known_hosts
+    - cp $SERVER_KEY_FILE_TEST ~/.ssh/id_rsa
+    - chmod 400 ~/.ssh/id_rsa
+    - mkdir -p ~/.docker
+    - echo "$CA_PEM" | tr -d '\r' > ~/.docker/ca.pem
+    - echo "$CERT_PEM" | tr -d '\r' > ~/.docker/cert.pem
+    - echo "$KEY_PEM" | tr -d '\r' > ~/.docker/key.pem
+    - echo "$REGISTRY_PASSWORD" | $DOCKER_HOST_64022 login -u "$REGISTRY_USERNAME" --password-stdin "$REGISTRY_HOST"
+    - echo "$REGISTRY_PASSWORD" | $DOCKER_HOST_65022 login -u "$REGISTRY_USERNAME" --password-stdin "$REGISTRY_HOST"
+    - export REMOTE_DOCKER_HOST=$DOCKER_HOST_64022
+    - *stop_containers
+    - export REMOTE_DOCKER_HOST=$DOCKER_HOST_65022
+    - *stop_containers
+    - export REMOTE_DOCKER_HOST=$DOCKER_HOST_64022
+    - *start_containers_prod
+    - export REMOTE_DOCKER_HOST=$DOCKER_HOST_65022
+    - *start_containers_prod
+  after_script:
+    - $DOCKER_HOST_64022 logout $REGISTRY_HOST
+    - $DOCKER_HOST_65022 logout $REGISTRY_HOST
+  rules:
+    - if: $CI_COMMIT_BRANCH == 'master'
+  when: manual

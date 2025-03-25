@@ -1,0 +1,14 @@
+{
+    "age": "27",
+    "cost": "1000000",
+    "initial_payment": "100000",
+    "loan_period": "3",
+    "overall_exp": "36",
+    "last_job_exp": "36",
+    "agenda_type": "apartments",
+    "mortgage_type": "developer_special",
+    "proof_of_income": "bank_certificate",
+    "is_insured": "1",
+    "is_rf_citizen": "0",
+    "payroll_program_bank_id": "1"
+}

@@ -1,0 +1,40 @@
+{
+    "claimUkList": [
+        {
+            "id": 1,
+            "modifiedOn": "01-07-2022",
+            "createdOn": "01-07-2022",
+            "incidentClassificationCode": {
+                "code": "1"
+            },
+            "status": {
+                "code": "1"
+            },
+            "isNotReadSMS": true
+        },
+        {
+            "id": 2,
+            "modifiedOn": "02-07-2022",
+            "createdOn": "02-07-2022",
+            "incidentClassificationCode": {
+                "code": "1"
+            },
+            "status": {
+                "code": "1"
+            },
+            "isNotReadSMS": true
+        },
+        {
+            "id": 3,
+            "modifiedOn": "03-07-2022",
+            "createdOn": "03-07-2022",
+            "incidentClassificationCode": {
+                "code": "1"
+            },
+            "status": {
+                "code": "1"
+            },
+            "isNotReadSMS": false
+        }
+    ]
+}

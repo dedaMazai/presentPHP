@@ -1,0 +1,43 @@
+ARG BASE_IMAGE=
+ARG SERVER_TZ="Europe/Moscow"
+FROM ${BASE_IMAGE} AS base
+ARG SERVER_TZ
+WORKDIR /var/www/project
+RUN apk add --no-cache freetype-dev libjpeg-turbo-dev libpng-dev libwebp-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) gd
+
+#pecl and redis
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Supervisor
+RUN apk add --no-cache supervisor
+
+# Timezone
+RUN apk add --no-cache tzdata
+RUN cp /usr/share/zoneinfo/${SERVER_TZ} /etc/localtime
+RUN echo "${SERVER_TZ}" > /etc/timezone
+ENV TZ=${SERVER_TZ}
+
+
+FROM base as code
+COPY docker/images/php/php.ini /usr/local/etc/php/conf.d/custom.ini
+COPY docker/images/php/www.conf /usr/local/etc/php-fpm.d/www.conf
+COPY docker/images/php/supervisor-laravel.conf /etc/supervisor.d/laravel.conf
+COPY --chown=www-data:www-data . .
+RUN rm -rf docker
+
+FROM code AS app
+RUN chmod +x startup.sh
+RUN cp .env.example .env
+RUN php artisan key:generate
+RUN mkdir certs &&\
+cd certs &&\
+curl -O  https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt &&\
+curl -O  https://gu-st.ru/content/lending/russian_trusted_sub_ca_pem.crt &&\
+cp * /etc/ssl/certs/ &&\
+apk add ca-certificates &&\
+update-ca-certificates
+
+ENTRYPOINT [ ]
+CMD /bin/sh /var/www/project/startup.sh && exec php-fpm

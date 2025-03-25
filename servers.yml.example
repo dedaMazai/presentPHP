@@ -1,0 +1,16 @@
+hosts:
+  dev:
+    branch: develop
+    hostname:
+    identity_file: ~/.ssh/id_rsa
+    remote_user:
+    deploy_path:
+    repository:
+
+  prod:
+    branch: master
+    hostname:
+    identity_file: ~/.ssh/id_rsa
+    remote_user:
+    deploy_path:
+    repository:

@@ -1,0 +1,97 @@
+[
+    {
+        "id": "a09a7619-80c0-ec11-bba9-005056bfae62",
+        "name": "Системы для дома",
+        "groupingCode": {
+            "code": "10",
+            "name": "Уровень 2"
+        },
+        "countChildren": 13,
+        "description": "Системы для дома",
+        "incidentClassificationCode": {
+            "code": "4",
+            "name": "Маркетплейс"
+        },
+        "isDisplayedInLk": true,
+        "isDisplay": false,
+        "isPopularService": false,
+        "nds": {
+            "code": "0",
+            "name": "Без НДС"
+        },
+        "order": 1,
+        "serviceCatalogParent": {
+            "code": "00e0911a-f4bf-ec11-bba9-005056bfae62",
+            "name": "Маркетплейс"
+        },
+        "selectionOptionCode": {
+            "code": "2",
+            "name": "Несколько из списка"
+        }
+    },
+    {
+        "id": "8fbbcd55-82c0-ec11-bba9-005056bfae62",
+        "name": "Обслуживание ИПУ",
+        "groupingCode": {
+            "code": "15",
+            "name": "Уровень 3"
+        },
+        "countChildren": 3,
+        "description": "<html>\n<head>\n\t<title></title>\n</head>\n<body>Поверка приборов учета - обязательная процедура, , установленная законодательством РФ.<br />\nСрок эксплуатации приборов учета зависит от их назначения и модели.&nbsp;<br />\n<br />\nУК &quot;Пионер-Сервис&quot; оказывает услуги по&nbsp;обслуживанию индивидуальных приборов учета на месте. Для проведения поверки используется специализированное оборудование. После процедуры вы получаете полный комплект необходимых документов.<br />\n<br />\n<span style=\"font-size: 9pt;\"><span style=\"color: black;\"><span style=\"font-family: &quot;Arial&quot;,sans-serif;\"><em>Обращаем ваше внимание, что со дня окончания разрешенного срока эксплуатации счетчиков в течение 3-х месяцев при использовании неопломбированных и просроченных приборов учета, начисление за водопользование будет производиться по средним показаниям за последние полгода</em></span></span></span><br />\n<br />\n<br />\n&nbsp;</body>\n</html>\n",
+        "incidentClassificationCode": {
+            "code": "4",
+            "name": "Маркетплейс"
+        },
+        "isDisplayedInLk": true,
+        "isDisplay": false,
+        "isPopularService": false,
+        "nds": {
+            "code": "0",
+            "name": "Без НДС"
+        },
+        "order": 7,
+        "serviceCatalogParent": {
+            "code": "a09a7619-80c0-ec11-bba9-005056bfae62",
+            "name": "Системы для дома"
+        },
+        "imageUrl01": "https://i-crm.pioneer.ru/images/uk/Маркетплейс/Системы для дома/Обслуживание ИПУ/3.PNG",
+        "imageUrl03": "https://i-crm.pioneer.ru/images/uk/Маркетплейс/Иконки/Для услуг/иконка без категории.png",
+        "imageUrl04": "https://i-crm.pioneer.ru/images/uk/Маркетплейс/Системы для дома/Обслуживание ИПУ/3.PNG",
+        "selectionOptionCode": {
+            "code": "2",
+            "name": "Несколько из списка"
+        }
+    },
+    {
+        "id": "91bbcd55-82c0-ec11-bba9-005056bfae62",
+        "name": "Противопожарная система",
+        "groupingCode": {
+            "code": "15",
+            "name": "Уровень 3"
+        },
+        "countChildren": 0,
+        "description": "Система дымоудаления и противопожарная автоматика (ДУ ППА)",
+        "incidentClassificationCode": {
+            "code": "4",
+            "name": "Маркетплейс"
+        },
+        "isDisplayedInLk": true,
+        "isDisplay": false,
+        "isPopularService": false,
+        "nds": {
+            "code": "0",
+            "name": "Без НДС"
+        },
+        "order": 5,
+        "serviceCatalogParent": {
+            "code": "a09a7619-80c0-ec11-bba9-005056bfae62",
+            "name": "Системы для дома"
+        },
+        "imageUrl03": "https://i-crm.pioneer.ru/images/uk/Маркетплейс/Иконки/Для услуг/иконка без категории.png",
+        "imageUrl04": "https://i-crm.pioneer.ru/images/uk/Маркетплейс/Системы для дома/Система дымоудаления и противопожарная автоматика (ДУ ППА)/6.PNG",
+        "selectionOptionCode": {
+            "code": "2",
+            "name": "Несколько из списка"
+        }
+    }
+]

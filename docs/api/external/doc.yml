@@ -1,0 +1,6533 @@
+openapi: 3.0.3
+info:
+  title: Pioneer API v1
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local server
+tags:
+  - name: Проверочный код
+  - name: Авторизация
+  - name: Настройки
+  - name: Новости
+  - name: Баннеры
+  - name: Инструкция к покупке
+  - name: Объявления
+  - name: Проекты
+  - name: Пользователь
+  - name: Уведомления
+  - name: Избранное
+  - name: Лицевые счета
+  - name: Информация об объекте
+  - name: Полезные контакты
+  - name: Документы по помещению
+  - name: Управление доступом
+  - name: Квитанции
+  - name: Счетчики
+  - name: История транзакций
+  - name: Каталог
+  - name: Заявки
+  - name: Города
+  - name: Оплаты
+  - name: Обращение в ГК
+  - name: Заказ обратного звонка
+  - name: Продажи
+paths:
+  /verification-code/send:
+    post:
+      summary: Отправить проверочный код
+      description: Генерация и отправка проверочного кода по СМС
+      tags:
+        - Проверочный код
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+                case:
+                  type: string
+                  description: |
+                    Для какого случая отправлять проверочный код
+                    - login – логин
+                    - registration – регистрация
+                    - password_reset – сброс пароля
+                    - claim_acceptance – принятие заявки
+                    - delete_account - удаление аккаунта
+                  enum:
+                    - login
+                    - registration
+                    - password_reset
+                    - claim_acceptance
+                    - delete_account
+              required:
+                - phone
+                - case
+      responses:
+        '204':
+          $ref: '#/components/responses/VerificationCodeSendingSuccess'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '429':
+          $ref: '#/components/responses/VerificationCodeSendingTooManyAttempts'
+  /auth/register:
+    post:
+      summary: Зарегистрироваться
+      description: "Регистрация в системе с выдачей API-токена при успехе.\
+            \ Перед выполнением необходимо выполнить запрос на генерацию и\
+            \ отправление проверочного кода пользователю (см. Отправить проверочный код)."
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+                verification_code:
+                  type: string
+                  example: "1234"
+                first_name:
+                  type: string
+                  example: Иван
+                last_name:
+                  type: string
+                  example: Иванов
+                middle_name:
+                  type: string
+                  nullable: true
+                  example: Иванович
+                birth_date:
+                  type: string
+                  format: date
+                  example: 2020-10-10 10:00:00
+                email:
+                  type: string
+                  example: test@mail.com
+              required:
+                - phone
+                - verification_code
+                - first_name
+                - last_name
+                - birth_date
+                - email
+      responses:
+        '200':
+          $ref: '#/components/responses/RegisteredSuccess'
+        '409':
+          $ref: "#/components/responses/UserRegistrationHaveIncorrectData"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /auth/login-by-code:
+    post:
+      summary: Залогиниться по проверочному коду
+      description: "Вход в систему с выдачей API-токена при успехе.\
+        \ Перед выполнением необходимо выполнить запрос на генерацию и\
+        \ отправление проверочного кода пользователю (см. Отправить проверочный код)."
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                verification_code:
+                  type: string
+              example:
+                phone: "+79009009090"
+                verification_code: "1234"
+              required:
+                - phone
+                - verification_code
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '429':
+          $ref: "#/components/responses/TooManyAuthAttempts"
+  /auth/login-by-password:
+    post:
+      summary: Залогиниться по паролю
+      description: "Вход в систему с выдачей API-токена при успехе.\
+          \ Перед выполнением необходимо выполнить запрос на генерацию и\
+          \ отправление проверочного кода пользователю (см. Отправить проверочный код)."
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+                password:
+                  type: string
+                  example: Test1234
+              required:
+                - phone
+                - password
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '429':
+          $ref: "#/components/responses/TooManyAuthAttempts"
+  /auth/set-password:
+    post:
+      summary: Установить пароля
+      description: Установка пароля для текущего авторизованного пользователя
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                password:
+                  type: string
+                  example: Test1234
+              required:
+                - phone
+                - verification_code
+                - password
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '403':
+          description: Пользователь уже установил пароль
+  /auth/password-reset/verify-code:
+    post:
+      summary: Верифицировать проверочный код сброса пароля
+      description: "Верификация проверочного кода сброса пароля.\
+              \ Перед выполнением необходимо выполнить запрос на генерацию и\
+              \ отправление проверочного кода пользователю (см. Отправить проверочный код)."
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+                verification_code:
+                  type: string
+                  example: "1234"
+              required:
+                - phone
+                - verification_code
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /auth/reset-password:
+    put:
+      summary: Сбросить пароль
+      description: "Сброс пароля с выдачей API-токена при успехе.\
+          \ Перед выполнением необходимо выполнить запрос на генерацию и\
+          \ отправление проверочного кода пользователю (см. Отправить проверочный код)."
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+                verification_code:
+                  type: string
+                  example: "1234"
+                password:
+                  type: string
+                  example: Test1234
+              required:
+                - phone
+                - verification_code
+                - password
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '429':
+          $ref: "#/components/responses/TooManyAuthAttempts"
+  /auth/change-password:
+    put:
+      summary: Изменить пароль
+      description: Изменить пароля текущему авторизованному пользователю
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - Авторизация
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                current_password:
+                  type: string
+                  example: Test1234
+                new_password:
+                  type: string
+                  example: Test4321
+              required:
+                - current_password
+                - new_password
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /auth/logout:
+    delete:
+      summary: Разлогиниться
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - Авторизация
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /auth/refresh:
+    post:
+      summary: Получить новый токен
+      security:
+        - bearerAuth: [ ]
+      tags:
+        - Авторизация
+      responses:
+        '200':
+          $ref: '#/components/responses/LoginSuccess'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /settings/general:
+    get:
+      summary: Получить общие настройки
+      description: Получение общих настроек
+      tags:
+        - Настройки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/GeneralSettingsSuccessfulAction"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /settings/about-company:
+    get:
+      summary: Получить информацию о группе компаний
+      description: Получение информации о группе компаний
+      tags:
+        - Настройки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AboutCompany'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /news:
+    parameters:
+      - in: query
+        name: type
+        required: true
+        schema:
+          $ref: "#/components/schemas/NewsType"
+        description: Поиск по типу новости
+      - in: query
+        name: category
+        schema:
+          $ref: "#/components/schemas/NewsCategory"
+        description: Поиск по категории новости
+      - in: query
+        name: uk_project_id
+        schema:
+          type: integer
+        description: Поиск новостей по ID проекта УК
+    get:
+      summary: Получить новости
+      description: Получение списка новостей по типу
+      tags:
+        - Новости
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/NewsListSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /news/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор новости
+          example: 2
+    get:
+      summary: Получить новость по id
+      description: Получение новости по id
+      tags:
+        - Новости
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/NewsSuccessfulAction"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects:
+    get:
+      summary: Получить проекты
+      description: Получение списка проектов по типу
+      tags:
+        - Проекты
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ProjectTypeSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /projects/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор проекта
+          example: 2
+    get:
+      summary: Получить проект по id
+      description: Получение проекта по id
+      tags:
+        - Проекты
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ProjectSuccessfulAction"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects/{projectId}/articles:
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор проекта
+          example: 2
+    get:
+      summary: Получить статьи для проекта
+      description: Получение списка статей для проекта
+      tags:
+        - Проекты
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ArticleListSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /projects/{projectId}/articles/{id}:
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор проекта
+          example: 2
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор статьи
+          example: 2
+    get:
+      summary: Получить статью проекта по id
+      description: Получение статьи проекта по id
+      tags:
+        - Проекты
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ArticleSuccessfulAction"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects/{projectId}/loan-offers:
+    parameters:
+      - in: path
+        name: projectId
+        required: true
+        schema:
+          type: integer
+          description: ID проекта
+          example: "1"
+      - in: query
+        name: age
+        required: true
+        schema:
+          type: integer
+          description: Возраст заемщика
+          example: "27"
+      - in: query
+        name: cost
+        required: true
+        schema:
+          type: integer
+          description: Стоимость недвижимости
+          example: "1000000"
+      - in: query
+        name: initial_payment
+        required: true
+        schema:
+          type: integer
+          description: Первоначальный взнос
+          example: "100000"
+      - in: query
+        name: loan_period
+        required: true
+        schema:
+          type: integer
+          description: Срок кредита в годах
+          example: "3"
+      - in: query
+        name: overall_exp
+        required: true
+        schema:
+          type: integer
+          description: Общий трудовой стаж в месяцах
+          example: "36"
+      - in: query
+        name: last_job_exp
+        required: true
+        schema:
+          type: integer
+          description: Стаж на последнем месте работы в месяцах
+          example: "36"
+      - in: query
+        name: agenda_type
+        required: true
+        schema:
+          $ref: "#/components/schemas/AgendaType"
+      - in: query
+        name: mortgage_type
+        required: true
+        schema:
+          $ref: "#/components/schemas/MortgageType"
+      - in: query
+        name: proof_of_income
+        required: true
+        schema:
+          $ref: "#/components/schemas/ProofOfIncome"
+      - in: query
+        name: is_insured
+        required: true
+        schema:
+          type: string
+          description: Страхование включено
+          example: "1"
+      - in: query
+        name: is_rf_citizen
+        required: true
+        schema:
+          type: string
+          description: Гражданство РФ
+          example: "0"
+      - in: query
+        name: payroll_program_bank_id
+        required: false
+        schema:
+          type: integer
+          description: Зарплатный проект (идентификатор кредитной организации в которой представлен зарплатный проект).
+          example: "1"
+    get:
+      summary: Получить список ипотечных предложений по проекту
+      description: Получение списка банковских предложений удовлетворяющих условиям переданных параметров
+      tags:
+        - Проекты
+      responses:
+        '200':
+          $ref: "#/components/responses/LoanOfferListSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /offers/{place}:
+    parameters:
+      - in: path
+        name: place
+        required: true
+        schema:
+          $ref: '#/components/schemas/BannerPlace'
+    get:
+      summary: Получить баннеры по месту вывода
+      description: Получение баннеров по месту вывода
+      tags:
+        - Баннеры
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/BannerSuccessfulAction"
+  /instructions:
+    get:
+      summary: Получить инструкцию к покупке
+      description: Получение инструкции к покупке
+      tags:
+        - Инструкция к покупке
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/InstructionsSuccessfulAction"
+  /announcements/{place}:
+    parameters:
+      - in: path
+        name: place
+        required: true
+        schema:
+          $ref: '#/components/schemas/AdPlace'
+    get:
+      summary: Получить объявление по месту вывода
+      description: Получение объявления по месту вывода
+      tags:
+        - Объявления
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/AdSuccessfulAction"
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+  /user:
+    get:
+      summary: Получить пользователя
+      description: Получение данных о текущем авторизованном пользователе
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/UserSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+    put:
+      summary: Изменить пользователя
+      description: Изменение данных текущего авторизованного пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  example: test@mail.com
+              required:
+                - email
+      responses:
+        '200':
+          $ref: "#/components/responses/UserSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      summary: Удалить аккаунт
+      description: Удаление текущего пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                reason:
+                  type: string
+                  example: "Причина удаления"
+                  description: DeletingReason.value или причина удаления в текстовой свободной форме
+                code:
+                  type: integer
+                  description: Код подтверждения из СМС
+                  example: 123123
+              required:
+                - reason
+                - code
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /user/documents:
+    get:
+      summary: Получить основные документы пользователя
+      description: Получить список загруженных документов пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: "#/components/responses/UserDocumentsSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      summary: Загрузить документ
+      description: Добавить новый документ пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Тип документа
+                  example: "snils"
+                file:
+                  type: string
+                  format: binary
+                  description: Файл документа
+              required:
+                - type
+                - file
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /user/documents/{documentId}:
+    parameters:
+      - in: path
+        name: documentId
+        schema:
+          type: string
+        required: true
+        example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+    get:
+      summary: Получть документ пользователя
+      description: Возвращает выбранный файл пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/UserDocumentByIdSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Удалить документ пользователя
+      description: Удалить документ пользователя
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /user/notifications:
+    post:
+      summary: Прочитать уведомления
+      description: Отметить непрочитанные уведомления текущего пользователя как прочитанные
+      tags:
+        - Уведомления
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /user/notifications/state:
+    get:
+      summary: Проверить, если не прочитанные уведомления
+      description: Проверить непрочитанные уведомления текущего пользователя
+      tags:
+        - Уведомления
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  has_new_messages:
+                    type: boolean
+                required:
+                  - has_new_messages
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /user/notifications/{channel}/toggle:
+    parameters:
+      - in: path
+        name: channel
+        required: true
+        schema:
+          $ref: '#/components/schemas/NotificationType'
+    post:
+      summary: Настройка уведомлений
+      description: Метод включения/отключения уведомлений
+      tags:
+        - Уведомления
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /user/favorite-properties:
+    get:
+      summary: Получить избранные объекты недвижимости
+      description: Получение избранных объектов недвижимости текущего авторизованного пользователя
+      tags:
+        - Избранное
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/FavoritePropertiesListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /user/favorite-properties/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: Идентификатор объекта недвижимости
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    post:
+      summary: Добавить объект недвижимости в избранное
+      description: Добавление объекта недвижимости в избранное текущего авторизованного пользователя
+      tags:
+        - Избранное
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  description: Ссылка на вебвью
+                  example: "http://webview.com"
+              required:
+                - url
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '409':
+          $ref: '#/components/responses/PropertyAlreadyInFavorites'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      summary: Удалить объект недвижимости из избранного
+      description: Удаление объекта недвижимости из избранного текущего авторизованного пользователя
+      tags:
+        - Избранное
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /user/push-token:
+    put:
+      summary: Сохранение push-токена пользователя
+      description: Привязывает переданный токен к текущему пользователю
+      tags:
+        - Пользователь
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Push-токен
+                  example: "sadasdas-1asdasd"
+              required:
+                - token
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /user/deleting-reasons:
+    get:
+      summary: Получить причины удаления аккаунта
+      description: Получить список причин удаления аккаунта пользователем
+      tags:
+        - Пользователь
+      responses:
+        '200':
+          $ref: "#/components/responses/DeletingReasonsSuccessfulAction"
+  /accounts:
+    get:
+      summary: Получить информацию по лицевым счетам
+      description: Получение информации по лицевым счетам текущего авторизованного пользователя
+      tags:
+        - Лицевые счета
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/AccountListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить информацию по лицевому счету
+      description: Получение информации по лицевому счету текущего авторизованного пользователя
+      tags:
+        - Лицевые счета
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/AccountSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/additional-info:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить информацию об объекте
+      description: Получение информации об объекте по лицевому счету текущего авторизованного пользователя
+      tags:
+        - Информация об объекте
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/AccountAdditionalInfoSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /accounts/{accountNumber}/additional-info/articles/{articleId}:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: path
+        name: articleId
+        required: true
+        schema:
+          type: integer
+          description: ID статьи
+          example: 123
+    get:
+      summary: Получить статью
+      description: Получение статьи об объекте
+      tags:
+        - Информация об объекте
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ArticleSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountNumber}/contacts:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить полезные контакты для объекта
+      description: Получение полезных контактов для объекта
+      tags:
+        - Полезные контакты
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ContactGroupSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountNumber}/documents:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить документы по помещению
+      description: Получение документов по помещению по лицевому счету текущего авторизованного пользователя
+      tags:
+        - Документы по помещению
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/AccountDocumentListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/relationship-invites:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить приглашения
+      description: Получение приглашений по лицевому счету текущего авторизованного пользователя
+      tags:
+        - Управление доступом
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/RelationshipInviteListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+    post:
+      summary: Создать приглашение
+      description: Создание приглашения
+      tags:
+        - Управление доступом
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                  description: Имя
+                  example: "Иван"
+                last_name:
+                  type: string
+                  description: Фамилия
+                  example: "Иванов"
+                phone:
+                  type: string
+                  description: Телефон
+                  example: "+79090000001"
+                birth_date:
+                  type: string
+                  format: date
+                  description: Дата рождения
+                  example: "2021-01-01"
+              required:
+                - first_name
+                - last_name
+                - phone
+                - birth_date
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '409':
+          $ref: '#/components/responses/InviteAlreadyExistOrYouCantInviteYourself'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/relationship-invites/{id}:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          description: Идентификатор приглашения
+          example: 2
+    delete:
+      summary: Удалить приглашение
+      description: Удаление приглашения
+      tags:
+        - Управление доступом
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/receipts:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: query
+        name: start_date
+        schema:
+          type: string
+          description: Дата начала периода (включительно)
+          example: "2021-01-01"
+      - in: query
+        name: end_date
+        schema:
+          type: string
+          description: Дата конца периода (включительно)
+          example: "2021-12-31"
+    get:
+      summary: Получить список квитанций
+      description: Получение списка квитанций по счету текущего авторизованного пользователя
+      tags:
+        - Квитанции
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ReceiptListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/receipts/pdf:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: query
+        name: uri
+        required: true
+        schema:
+          type: string
+          description: Внутренняя ссылка на PDF с квитанцией
+          example: "%SOME_URL%"
+    get:
+      summary: Получить PDF файл квитанций
+      description: Получение PDF файла квитанций по счету текущего авторизованного пользователя
+      tags:
+        - Квитанции
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: PDF файл квитанции
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountNumber}/meters/statistics:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: query
+        name: type
+        required: true
+        schema:
+          $ref: "#/components/schemas/MeterType"
+        description: Поиск по типу счетчика
+      - in: query
+        name: subtype
+        required: false
+        schema:
+          $ref: "#/components/schemas/MeterSubtype"
+        description: Поиск по подтипу счетчика (для воды)
+      - in: query
+        name: year
+        required: true
+        schema:
+          type: integer
+          description: Год
+          example: "2021"
+        description: Поиск по году
+    get:
+      summary: Получить статистику потребления
+      description: Получение статистики потребления по счету текущего авторизованного пользователя
+      tags:
+        - Счетчики
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/MeterStatisticsListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/meters/tariffs:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить список тарифов
+      description: Получение списка тарифов по счету текущего авторизованного пользователя
+      tags:
+        - Счетчики
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/MeterTariffListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/meters:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: query
+        name: type
+        required: false
+        schema:
+          $ref: "#/components/schemas/MeterType"
+        description: Поиск по типу счетчика
+      - in: query
+        name: subtype
+        required: false
+        schema:
+          $ref: "#/components/schemas/MeterSubtype"
+        description: Поиск по подтипу счетчика (для воды)
+    get:
+      summary: Получить список счетчиков
+      description: Получение списка счетчиков по счету текущего авторизованного пользователя
+      tags:
+        - Счетчики
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/MeterListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    post:
+      summary: Сохранить показания счетчика
+      description: Сохранить показания счетчика
+      tags:
+        - Счетчики
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              description: Показания счётчиков
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: Идентификатор счётчика
+                    example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                  values:
+                    type: array
+                    description: Показания счётчика по тарифам
+                    items:
+                      type: object
+                      properties:
+                        tariff_id:
+                          type: string
+                          description: Идентификатор тарифа
+                          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                        current_value:
+                          type: number
+                          nullable: true
+                          description: Введенное пользователем значение показаний тарифа
+                          example: 40.34
+                      required:
+                        - tariff_id
+                        - сurrent_value
+                required:
+                  - id
+                  - values
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/meters/{meterId}/name:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: path
+        name: meterId
+        required: true
+        schema:
+          type: string
+          description: ID счетчика
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Сохранить название счетчика
+      description: Сохранить название счетчика
+      tags:
+        - Счетчики
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Название счётчика
+                  nullable: true
+                  example: "Счетчик на кухне"
+              required:
+                - name
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/transaction-logs:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    get:
+      summary: Получить историю транзакций
+      description: Получение истории транзакций по лицевому счету текущего авторизованного пользователя
+      tags:
+        - История транзакций
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/TransactionLogListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /claims/catalogue:
+    parameters:
+      - in: query
+        name: theme_id
+        required: true
+        schema:
+          $ref: '#/components/schemas/ClaimTheme'
+    get:
+      summary: Получить дерево категорий и услуг
+      description: Получение дерева категорий и услуг
+      tags:
+        - Каталог
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimCatalogueThemeSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/catalogue/search:
+    parameters:
+      - in: query
+        name: theme_id
+        required: true
+        schema:
+          $ref: '#/components/schemas/ClaimTheme'
+      - in: query
+        name: query
+        required: true
+        schema:
+          type: string
+          description: Поисковый запрос
+          example: консультация
+    get:
+      summary: Поиск категорий и услуг по теме и запросу
+      description: Поиск категорий и услуг по теме и запросу
+      tags:
+        - Каталог
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimCatalogueSearchSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/popular-services:
+    parameters:
+      - in: query
+        name: theme_id
+        required: true
+        schema:
+          $ref: '#/components/schemas/ClaimTheme'
+    get:
+      summary: Получить список популярных услуг
+      description: Получение списка популярных услуг
+      tags:
+        - Каталог
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimCatalogueItemListSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/catalogue/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID категории/услуги
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    get:
+      summary: Получить категорию/услугу
+      description: Получение категории/услуги
+      tags:
+        - Каталог
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimCatalogueItemSuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/last-created:
+    get:
+      summary: Получить последнюю созданную заявку
+      description: Получение последней созданной заявки текущего авторизованного пользователя
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/LastClaimSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountNumber}/claims:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+      - in: query
+        name: theme_id
+        schema:
+          $ref: "#/components/schemas/ClaimTheme"
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+          description: Дата начала периода
+          example: "2021-10-01"
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+          description: Дата конца периода
+          example: "2021-10-02"
+      - in: query
+        name: statuses
+        schema:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClaimFilterStatus"
+    get:
+      summary: Получить список заявок
+      description: Получение списка заявок по лицевому счету текущего авторизованного пользователя
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    get:
+      summary: Получить заявку
+      description: Получение заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /claims/{id}/reopen:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Переоткрыть заявку
+      description: Переоткрытие заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/accept:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Принять заявку
+      description: Принятие заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verification_code:
+                  type: string
+                  description: Код подтверждения из СМС
+                  example: 123123
+              required:
+                - verification_code
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/rate:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Оценить заявку
+      description: Оценка заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  enum:
+                    - 1
+                    - 2
+                    - 3
+                    - 4
+                    - 5
+                  description: Оценка от 1 до 5
+                  example: 1
+              required:
+                - rating
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/comment:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Прокомментировать заявку
+      description: Оценка заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment_quality:
+                  type: string
+                  description: Комментарий
+                  example: "Все очень хорошо сделали!"
+              required:
+                - comment_quality
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/cancel:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    put:
+      summary: Отменить заявку
+      description: Отмена заявки по ID
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimSuccessfulAction"
+        '400':
+          description: "Нельзя отменить: заявка не активна."
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /accounts/{accountNumber}/claims/pass:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Пропуск
+      description: Сохранить заявку на Пропуск
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - type: object
+                  properties:
+                    pass_type:
+                      $ref: "#/components/schemas/ClaimPassType"
+                    arrival_date:
+                      type: string
+                      format: datetime
+                      example: "2021-10-01 12:00:00"
+                    comment:
+                      type: string
+                      nullable: true
+                      example: "Комментарий"
+                    images:
+                      type: array
+                      items:
+                        type: string
+                        format: binary
+                  required:
+                    - pass_type
+                    - arrival_date
+                - oneOf:
+                    - type: object
+                      properties:
+                        full_name:
+                          type: string
+                          example: "Иванов Иван"
+                      required:
+                        - full_name
+                    - type: object
+                      properties:
+                        car_type:
+                          $ref: "#/components/schemas/ClaimPassCarType"
+                        car_number:
+                          type: string
+                          example: "E175EE116"
+                      required:
+                        - car_type
+                        - car_number
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/sos:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Аварийный случай
+      description: Сохранить заявку на Аварийный случай
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_item_id:
+                  type: string
+                  description: "Идентификатор услуги"
+                  example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                comment:
+                  type: string
+                  example: "Комментарий"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_item_id
+                - comment
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/request:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Отправить заявку
+      description: Сохранить заявку на Отправить заявку
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_item_ids:
+                  type: array
+                  items:
+                    type: string
+                    description: "Идентификатор услуги"
+                    example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                arrival_date:
+                  type: string
+                  format: datetime
+                  nullable: true
+                  example: "2021-10-01 12:00:00"
+                comment:
+                  type: string
+                  example: "Комментарий"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_item_ids
+                - comment
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/appeal:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Обращение или Запрос документов
+      description: Сохранить заявку на Обращение или Запрос документов
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_item_ids:
+                  type: array
+                  items:
+                    type: string
+                    description: "Идентификатор услуги"
+                    example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                comment:
+                  type: string
+                  example: "Комментарий"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_item_ids
+                - comment
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/visit:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Визит
+      description: Сохранить заявку на Визит
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_item_id:
+                  type: string
+                  description: "Идентификатор услуги"
+                  example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                arrival_date:
+                  type: string
+                  format: datetime
+                  nullable: true
+                  example: "2021-10-01 12:00:00"
+                comment:
+                  type: string
+                  nullable: true
+                  example: "Комментарий"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_item_id
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/warranty:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку на Гарантийный отдел
+      description: Сохранить заявку на Гарантийный отдел
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_item_ids:
+                  type: array
+                  items:
+                    type: string
+                    description: "Идентификатор услуги"
+                    example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                arrival_date:
+                  type: string
+                  format: datetime
+                  nullable: true
+                  example: "2021-10-01 12:00:00"
+                comment:
+                  type: string
+                  example: "Комментарий"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_item_ids
+                - comment
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/claims/marketplace:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Сохранить заявку для Маркетплейса
+      description: Сохранить заявку для Маркетплейса
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                claim_catalogue_items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: "Идентификатор услуги"
+                        example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+                      count:
+                        type: integer
+                        description: "Кол-во"
+                        example: 1
+                    required:
+                      - id
+                      - count
+                arrival_date:
+                  type: string
+                  format: datetime
+                  nullable: true
+                  example: "2021-10-01 12:00:00"
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+              required:
+                - claim_catalogue_items
+                - arrival_date
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/messages:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    get:
+      summary: Получить сообщения по заявке
+      description: Получение списка сообщений по заявке
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimMessageListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+    post:
+      summary: Отправить сообщение по заявке
+      description: Отправить сообщение по заявке
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  example: "Текст сообщения"
+              required:
+                - text
+      responses:
+        '200':
+          $ref: "#/components/responses/ClaimMessageSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /claims/{id}/messages/state:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+    get:
+      summary: Получить статус чата заявки
+      description: Возращает флаг наличия новых сообщений от менеджера в чате
+      tags:
+        - Заявки
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/NewClaimMessagesStateSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /accounts/{accountNumber}/payments:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Оплата с помощью карты
+      description: Оплата с помощью карты
+      tags:
+        - Оплаты
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    amount:
+                      type: integer
+                      example: 500000
+                      minimum: 1
+                  required:
+                    - amount
+                - type: object
+                  properties:
+                    claim_id:
+                      type: string
+                      example: a8b44ebf-d2d3-7e78-adc7-63db6a62f549
+                  required:
+                    - claim_id
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: 'https://3dsec.sberbank.ru/payment/merchants/sbersafe_sberid/payment_ru.html?mdOrder=a8b44ebf-d2d3-7e78-adc7-63db6a62f549'
+                required:
+                  - url
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/payments/apple-pay:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Оплата с помощью ApplePay
+      description: Оплата с помощью ApplePay
+      tags:
+        - Оплаты
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    amount:
+                      type: integer
+                      example: 500000
+                    token_data:
+                      type: string
+                  required:
+                    - amount
+                    - token_data
+                - type: object
+                  properties:
+                    claim_id:
+                      type: string
+                      example: a8b44ebf-d2d3-7e78-adc7-63db6a62f549
+                    token_data:
+                      type: string
+                  required:
+                    - claim_id
+                    - token_data
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /accounts/{accountNumber}/payments/apple-pay-validate:
+    parameters:
+      - in: path
+        name: accountNumber
+        required: true
+        schema:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+    post:
+      summary: Валидация ApplePay
+      description: Валидация ApplePay
+      tags:
+        - Оплаты
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  example: https://apple.com/validate/
+              required:
+                - url
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_data:
+                    type: string
+                required:
+                  - payment_data
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /cities:
+    get:
+      summary: Получить список городов
+      description: Список городов для фильтрации проектов
+      tags:
+        - Города
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccessfulActionCities"
+  /notifications:
+    get:
+      summary: Получить список уведомлений
+      description: Список уведомлений адресованных текущему пользователю
+      tags:
+        - Уведомления
+      responses:
+        '200':
+          $ref: "#/components/responses/NotificationsListSuccessfulAction"
+  /feedback-appeal:
+    post:
+      summary: Отправить обращение в ГК Пионер
+      description: Метод отправляет сообщение пользователя на почту Пионер
+      tags:
+        - Обращение в ГК
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: 'Сообщение'
+              required:
+                - message
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /order-callback:
+    post:
+      summary: Заказать обратный звонок
+      description: Заказ обратного звонка
+      tags:
+        - Заказ обратного звонка
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  example: "+79009009090"
+              required:
+                - phone
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /demands:
+    get:
+      summary: Получить список заявок на покупку ОН
+      description: Получение списка заявок на покупку ОН текущего авторизованного пользователя
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/DemandListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+    post:
+      summary: Бронирование объекта недвижимости
+      description: Метод бронированирует объект недвижимости и создает заявку
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                property_id:
+                  type: string
+                  description: ID объекта недвижимости
+                  example: 2872eb68-c242-ec11-bba5-005056bf672e
+              required:
+                - property_id
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  demand_id:
+                    type: string
+                    description: ID заявки
+                    example: 2872eb68-c242-ec11-bba5-005056bf672e
+                required:
+                  - demand_id
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '429':
+          $ref: "#/components/responses/TooManyBookingAttempts"
+  /demands/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки на покупку ОН
+          example: 2872eb68-c242-ec11-bba5-005056bf672e
+    get:
+      summary: Получить заявку на покупку ОН
+      description: Получение полной информации по заявке на покупку ОН
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/DemandSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /demands/{id}/pay-booking:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки на покупку ОН
+          example: 2872eb68-c242-ec11-bba5-005056bf672e
+    post:
+      summary: Оплата с помощью карты
+      description: Оплата с помощью карты
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          description: Успешная операция
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: 'https://3dsec.sberbank.ru/payment/merchants/sbersafe_sberid/payment_ru.html?mdOrder=a8b44ebf-d2d3-7e78-adc7-63db6a62f549'
+                required:
+                  - url
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+  /demands/{id}/banks:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки на покупку ОН
+          example: 2872eb68-c242-ec11-bba5-005056bf672e
+      - in: query
+        name: type
+        required: false
+        schema:
+          $ref: "#/components/schemas/BankType"
+    get:
+      summary: Получить банки для заявки
+      description: Получение банков для заявки с фильтрацией по типу
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      responses:
+        '200':
+          $ref: "#/components/responses/BankListSuccessfulAction"
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+  /demands/{id}/set-terms:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          description: ID заявки на покупку ОН
+          example: 2872eb68-c242-ec11-bba5-005056bf672e
+    post:
+      summary: Установка основный условий покупки
+      description: Метод установки основный условий (оплата и собственники) покупки
+      tags:
+        - Продажи
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bank_id:
+                  type: string
+                  description: ID банка для аккредитива
+                  example: 2872eb68-c242-ec11-bba5-005056bf672e
+                payment_mode:
+                  $ref: '#/components/schemas/PaymentMode'
+                is_escrow_bank_client:
+                  type: boolean
+                  description: У клиента есть счет в эскроу банке ОН
+                  example: 2872eb68-c242-ec11-bba5-005056bf672e
+                owner_type:
+                  $ref: '#/components/schemas/OwnerType'
+                owners:
+                  type: array
+                  items:
+                    oneOf:
+                      - type: object
+                        description: Индивидуальная - Владелец аккаунта
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          family_status:
+                            $ref: '#/components/schemas/FamilyStatus'
+                      - type: object
+                        description: Индивидуальная - Взрослый/Ребенок старше 14 лет
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          phone:
+                            type: string
+                            description: Телефон
+                            example: "+79001000001"
+                          email:
+                            type: string
+                            description: Email
+                            example: "test@test.ru"
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          family_status:
+                            $ref: '#/components/schemas/FamilyStatus'
+                      - type: object
+                        description: Индивидуальная - Ребенок до 14 лет
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                      - type: object
+                        description: Совместная - Владелец аккаунта
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                      - type: object
+                        description: Совместная - Взрослый
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          phone:
+                            type: string
+                            description: Телефон
+                            example: "+79001000001"
+                          email:
+                            type: string
+                            description: Email
+                            example: "test@test.ru"
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                      - type: object
+                        description: Долевая - Владелец аккаунта
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          family_status:
+                            $ref: '#/components/schemas/FamilyStatus'
+                          part:
+                            type: string
+                            description: Доля
+                            example: '1/2'
+                      - type: object
+                        description: Долевая - Взрослый/Ребенок старше 14 лет
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          phone:
+                            type: string
+                            description: Телефон
+                            example: "+79001000001"
+                          email:
+                            type: string
+                            description: Email
+                            example: "test@test.ru"
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          family_status:
+                            $ref: '#/components/schemas/FamilyStatus'
+                          part:
+                            type: string
+                            description: Доля
+                            example: '1/2'
+                      - type: object
+                        description: Индивидуальная - Ребенок до 14 лет
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          part:
+                            type: string
+                            description: Доля
+                            example: '1/2'
+                      - type: object
+                        description: Представитель ребенка до 14 лет
+                        properties:
+                          owner_object_type:
+                            $ref: '#/components/schemas/OwnerObjectType'
+                          last_name:
+                            type: string
+                            description: Фамилия
+                            example: 'Иванов'
+                          first_name:
+                            type: string
+                            description: Имя
+                            example: 'Иван'
+                          middle_name:
+                            type: string
+                            description: Отчество
+                            example: 'Иванович'
+                          phone:
+                            type: string
+                            description: Телефон
+                            example: "+79001000001"
+                          email:
+                            type: string
+                            description: Email
+                            example: "test@test.ru"
+                          birth_date:
+                            type: string
+                            format: date
+                            description: Дата рождения
+                            example: "2021-10-01"
+                          inn:
+                            type: string
+                            description: ИНН
+                            example: '123456'
+                          family_status:
+                            $ref: '#/components/schemas/FamilyStatus'
+              required:
+                - bank_id
+                - payment_mode
+      responses:
+        '204':
+          $ref: '#/components/responses/SuccessfulAction'
+        '401':
+          $ref: '#/components/responses/UserUnauthorized'
+        '422':
+          $ref: "#/components/responses/ValidationError"
+components:
+  schemas:
+    Pagination:
+      type: object
+      description: Пагинация
+      properties:
+        total:
+          type: number
+          example: 1
+        count:
+          type: number
+          example: 1
+        per_page:
+          type: number
+          example: 10
+        current_page:
+          type: number
+          example: 1
+        total_pages:
+          type: number
+          example: 1
+        links:
+          type: object
+          properties:
+            next:
+              type: string
+              example: "http://localhost:8080/api/v1/account/1234567890/receipts?page=2"
+      required:
+        - total
+        - count
+        - per_page
+        - current_page
+        - total_pages
+        - links
+    Role:
+      type: string
+      description: |
+        Роли для помещений
+        - 1 - Клиент
+        - 2 - Кредитор
+        - 4 - Заказчик
+        - 5 - Собственник
+        - 6 - Арендатор
+        - 7 - Проживающий
+        - 8 - Созаемщик
+      enum:
+        - 1
+        - 2
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+    Gender:
+      type: string
+      description: Пол
+      enum:
+        - male
+        - female
+    PropertyType:
+      type: string
+      description: Тип объекта недвижимости
+      enum:
+        - flat
+        - pantry
+        - parking
+        - street_retail
+        - apartment
+        - office
+        - retail_space
+        - shopping_center
+    NewsType:
+      type: string
+      description: Тип новости
+      enum:
+        - pioneer
+        - projects
+        - uk
+        - general
+    NewsCategory:
+      type: string
+      description: Категория новости
+      enum:
+        - news
+        - polls
+        - important
+        - actions
+    ContentItemType:
+      type: string
+      description: Тип контента
+      enum:
+        - text
+        - image
+        - gallery
+        - video
+        - title1lvl
+        - title2lvl
+        - title3lvl
+        - factoids
+        - numbered_list
+        - unnumbered_list
+    NotificationType:
+      type: string
+      description: Тип уведомления
+      enum:
+        - sms_news_company
+        - sms_news_object
+        - push_news_company
+        - push_news_object
+    AccountRealtyType:
+      type: string
+      description: |
+        Тип помещения
+        - 2 – Кваритира
+        - 4 – Машиноместо
+        - 8 – Нежилое
+        - 16 – Загородная
+        - 32 – Лот
+        - 4096 – Кладовка
+      enum:
+        - 2
+        - 4
+        - 8
+        - 16
+        - 32
+        - 4096
+    PaymentMethodType:
+      type: string
+      description: Тип способа оплаты
+      enum:
+        - card
+        - apple
+    MeterType:
+      type: string
+      description: Тип счетчика
+      enum:
+        - heat
+        - water
+        - electricity
+    MeterSubtype:
+      type: string
+      description: Подтип счетчика воды
+      enum:
+        - hot
+        - cold
+        - pure
+    MeterDataInputType:
+      type: string
+      description: Тип ввода показаний
+      enum:
+        - manual
+        - automatic
+    BannerPlace:
+      type: string
+      description: Место вывода баннера
+      enum:
+        - small_main
+        - gallery_marketplace
+    AdPlace:
+      type: string
+      description: Место вывода объявления
+      enum:
+        - uk_main_top
+        - uk_main_alert
+        - uk_marketplace_alert
+    ContactType:
+      type: string
+      description: Тип контакта
+      enum:
+        - map
+        - email
+        - phone
+    ReceiptStatus:
+      type: string
+      description: Статус оплаты квитанции
+      enum:
+        - Не оплачена
+        - Частично оплачена
+        - Оплачена
+    ClaimCatalogueItemGroup:
+      type: string
+      description: |
+        Уровень каталога
+        - 0 – Главная
+        - 5 – Уровень 1
+        - 10 – Уровень 2
+        - 15 – Уровень 3
+        - 20 – Уровень 4
+        - 25 – Уровень 5
+        - 30 – Услуга
+      enum:
+        - 0
+        - 5
+        - 10
+        - 15
+        - 20
+        - 25
+        - 30
+    ClaimCatalogueItemSelectOption:
+      type: string
+      description: |
+        Тип выбора в каталоге
+        - 1 – Один из списка
+        - 2 – Несколько из списка
+        - 3 – Не задается (Услуга)
+      enum:
+        - 1
+        - 2
+        - 3
+    ClaimPassCarType:
+      type: string
+      description: |
+        Тип автомобиля в заявках на пропуск
+        - 1 – легковой
+        - 2 – грузовой
+        - 3 – мотоцикл
+        - 4 – такси
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+    ClaimPassStatus:
+      type: string
+      description: |
+        Статус заявки на пропуск
+        - 0 – отмена
+        - 1 – принят
+        - 2 – прибыл
+        - 3 – отбыл
+      nullable: true
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+    ClaimPassType:
+      type: string
+      description: |
+        Тип заявки на пропуск
+        - 1 – автомобиль
+        - 2 – человек
+      nullable: true
+      enum:
+        - 1
+        - 2
+    ClaimPaymentStatus:
+      type: string
+      description: |
+        Статус оплаты заявки
+        - 1 – оплачена
+        - 2 – оплачена частично
+        - 3 – неоплачена
+        - 4 – отменена
+        - 5 – оплачена онлайн
+        - 6 – к оплате
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+    ClaimPriceType:
+      type: string
+      description: |
+        Тип цены заявки
+        - 1 – бесплатная
+        - 2 – фиксированная
+        - 3 – по договоренности
+        - 4 – агентская
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+    ClaimStatus:
+      type: string
+      description: |
+        Статус заявки
+        - 1 – новая
+        - 100000000 – принята
+        - 100000001 – запланирована
+        - 100000002 – исполнена
+        - 100000003 – отложена
+        - 100000004 – переоткрыта
+        - 2 – закрыта менеджером
+        - 100000006 – отменена менеджером
+        - 100000007 – закрыта клиентом
+        - 100000008 – отменена клиентом
+        - 100000009 – закрыта по времени
+      enum:
+        - 1
+        - 100000000
+        - 100000001
+        - 100000002
+        - 100000003
+        - 100000004
+        - 2
+        - 100000006
+        - 100000007
+        - 100000008
+        - 100000009
+    ClaimTheme:
+      type: string
+      description: |
+        Тема заявки
+        - 1 – оставить заявку
+        - 4 – маркетплейс
+        - 5 – задать вопрос
+        - 6 – обращение
+        - 7 – запрос правовых документов
+        - 8 – записаться на приём
+        - 10 – заказ пропуска
+        - 11 – аварийная
+        - 12 – гарантия
+      enum:
+        - 1
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 10
+        - 11
+        - 12
+    ClaimMessageType:
+      type: string
+      description: Тип сообщения
+      enum:
+        - client
+        - manager
+    ClaimFilterStatus:
+      type: string
+      description: Статус заявки для фильтра
+      enum:
+        - new
+        - being_processed
+        - in_progress
+        - awaiting_payment
+        - closed
+        - cancelled
+        - reopened
+    AgendaType:
+      type: string
+      description: |
+        Тип ипотечного жилья
+        - apartments – апартаменты
+        - commercial_mortgage – коммерческая ипотека
+        - country_house – загородный дом / участок
+        - primary_housing – первичное жилье
+        - realty_bail – под залог недвижимости
+        - refinance – рефинансирование
+        - secondary_housing – вторичное жилье
+        - stockroom – машиноместо / кладовая
+      enum:
+        - apartments
+        - commercial_mortgage
+        - country_house
+        - primary_housing
+        - realty_bail
+        - refinance
+        - secondary_housing
+        - stockroom
+    MortgageType:
+      type: string
+      description: |
+        Тип ипотеки
+        - developer_special – Спецпрограмма застройщика
+        - family – Семейная ипотека
+        - far_east – Дальневосточная
+        - government_support – Государственная поддержка 2020 (пандемия COVID-19)
+        - military – Военная ипотека
+        - standard – Стандартная ипотека
+      enum:
+        - developer_special
+        - family
+        - far_east
+        - government_support
+        - military
+        - standard
+    ProofOfIncome:
+      type: string
+      description: |
+        Подтверждение дохода
+        - bank_certificate – справка банка
+        - full_business – бизнес. Полный пакет
+        - ndfl – 2-НДФЛ
+        - no_needed – не требуется
+      enum:
+        - bank_certificate
+        - full_business
+        - ndfl
+        - no_needed
+    UserDocumentType:
+      type: string
+      description: |
+        Тип документа
+        - 4 – СНИЛС
+        - 524491 – Первая страница паспорта
+        - 524492 – Вторая страница паспорта
+      enum:
+        - 4
+        - 524491
+        - 524492
+    ClaimDocumentType:
+      type: string
+      description: |
+        Тип документа
+        - 1 – Документ удостоверяющий личность (Идентификатор)
+        - 524500 – Фото от заявителя
+        - 524501 – Фото от исполнителя
+      enum:
+        - 1
+        - 524500
+        - 524501
+    DocumentProcessingStatus:
+      type: string
+      description: |
+        Статус обработки документа
+        - 1 – Получен
+        - 2 – Принят
+        - 4 – Отклонен
+      enum:
+        - 1
+        - 2
+        - 4
+    ClaimFilterPaymentStatus:
+      type: string
+      description: Статус оплаты заявки для фильтра
+      enum:
+        - fully_paid
+        - not_fully_paid
+    NotificationMessagesType:
+      type: string
+      description: Тип уведомлений
+      enum:
+        - marketing_activity
+        - purchase_process
+        - uk
+        - news
+        - claim
+    DemandStatus:
+      type: string
+      description: |
+        Статус заявки в продажах
+        - 1 – Открыта
+        - 2 – В очереди
+        - 3 – Договор
+        - 4 – Истекло время
+        - 5 – Невозможно связаться
+        - 6 – Больше не интересно (Передумал покупать)
+        - 7 – Отменено (Не выяснено)
+        - 8 – Бронь
+        - 16 – Подтверждение
+        - 32 – Согласование
+        - 64 – В ожидании
+        - 512 – Просрочена
+        - 1024 – СЭЛТ
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+        - 6
+        - 7
+        - 8
+        - 16
+        - 32
+        - 64
+        - 512
+        - 1024
+    DemandState:
+      type: string
+      description: |
+        State заявки в продажах
+        - 0 – Открыта
+        - 1 – Квалифицированный
+        - 2 – Дисквалифицирован
+      enum:
+        - 0
+        - 1
+        - 2
+    SalesPropertyType:
+      type: string
+      description: |
+        Тип объекта в продажах
+        - 2 – Жилое
+        - 4 – Машиноместо
+        - 8 – Нежилое
+        - 16 – Загородная
+        - 32 – Лот
+      nullable: true
+      enum:
+        - 2
+        - 4
+        - 8
+        - 16
+        - 32
+    PropertyVariant:
+      type: string
+      description: |
+        Вариант объекта в продажах
+        - 1 – Квартиры с отделкой
+        - 2 – Апартаменты с мебелью
+        - 3 – Апартаменты без мебели
+        - 4 – Паркинги (надземные)
+        - 8 – Паркинги (подземные)
+        - 11 – Квартиры без отделки
+        - 16 – Торговля
+        - 32 – Офисы с отделкой
+        - 34 – Офисы без отделки
+        - 64 – Фитнес
+        - 128 – Ресторан
+        - 256 – Автомойка
+        - 512 – Сетевой ритейл
+        - 1024 – Нежилые
+        - 2048 – Студия
+        - 4096 – Кладовое помещение
+        - 8192 – Соц. объект
+        - 16384 – Отделка жилой недвижимости
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 8
+        - 11
+        - 16
+        - 32
+        - 34
+        - 64
+        - 128
+        - 256
+        - 512
+        - 1024
+        - 2048
+        - 4096
+        - 8192
+        - 16384
+    PropertyStatus:
+      type: string
+      description: |
+        Статус объекта в продажах
+        - 1 – Оценка
+        - 2 – Возвращено
+        - 4 – Свободно
+        - 8 – Ус.Бронь
+        - 16 – Стр.Резерв
+        - 32 – Пл.Бронь
+        - 64 – Аренда
+        - 128 – Продажа
+        - 1024 – Реализовано
+        - 2048 – Внешняя продажа
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 4
+        - 8
+        - 16
+        - 32
+        - 64
+        - 128
+        - 1024
+        - 2048
+    PaymentMode:
+      type: string
+      description: |
+        Вариант оплаты в продажах
+        - 1 – 100%
+        - 2 – Рассрочка
+        - 4 – Ипотека
+        - 8 – Субсидия
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 4
+        - 8
+    OwnerType:
+      type: string
+      description: |
+        Тип собственности в продажах
+        - 1 – Совместная собственность (нет брачного договора)
+        - 2 – Долевая собственность
+        - 3 – Долевая собственность с брачным договором
+        - 4 – Представитель (не участвует в сделке)
+        - 5 – Индивидуальная собственность
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 3
+        - 4
+        - 5
+    OwnerObjectType:
+      type: string
+      description: |
+        Тип собственника в продажах
+        - 0 - Владелец аккаунта
+        - 1 - Взрослый
+        - 2 - Ребенок до 14 лет
+        - 3 - Ребенок старше 14 лет
+        - 4 - Представитель ребенка
+      nullable: true
+      enum:
+        - 0
+        - 1
+        - 2
+        - 3
+        - 4
+    FamilyStatus:
+      type: string
+      description: |
+        Семейный статус в продажах
+        - 1 - Не в браке
+        - 2 - В браке
+        - 4 - В разводе
+        - 8 - Вдова/вдовец
+      nullable: true
+      enum:
+        - 1
+        - 2
+        - 4
+        - 8
+    BankType:
+      type: string
+      description: |
+        Тип банка
+        - 1 – Аккредитив
+        - 2 – Ипотека
+      nullable: true
+      enum:
+        - 1
+        - 2
+    Image:
+      type: object
+      nullable: true
+      properties:
+        url:
+          type: string
+          example: https://test.com/image.png
+      required:
+        - url
+    Banner:
+      type: object
+      properties:
+        place:
+          $ref: '#/components/schemas/BannerPlace'
+        image:
+          $ref: '#/components/schemas/Image'
+        news_id:
+          type: integer
+          nullable: true
+          example: 3
+        category_crm_id:
+          type: string
+          nullable: true
+          example: d7031393-1bbb-ec11-bbab-005056bf672e
+        url:
+          type: string
+          nullable: true
+          example: "https://test.com"
+        order:
+          type: integer
+          nullable: true
+          example: 3
+      required:
+        - place
+        - image
+        - news_id
+        - url
+        - order
+    Instruction:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Шаг 1"
+        image:
+          $ref: '#/components/schemas/Image'
+        text:
+          type: string
+          example: "Необходимо зарегистрироваться."
+        order:
+          type: integer
+          nullable: true
+          example: 3
+      required:
+        - title
+        - image
+        - text
+        - order
+    Ad:
+      type: object
+      properties:
+        place:
+          $ref: '#/components/schemas/AdPlace'
+        title:
+          type: string
+          example: "Заголовок"
+        subtitle:
+          type: string
+          nullable: true
+          example: "Подзаголовок"
+        image:
+          $ref: '#/components/schemas/Image'
+        news_id:
+          type: integer
+          nullable: true
+          example: 3
+        url:
+          type: string
+          nullable: true
+          example: "https://test.com"
+      required:
+        - place
+        - title
+        - subtitle
+        - image
+        - news_id
+        - url
+    ContentItem:
+      oneOf:
+        - $ref: '#/components/schemas/TextContentItem'
+        - $ref: '#/components/schemas/VideoContentItem'
+        - $ref: '#/components/schemas/ImageContentItem'
+        - $ref: '#/components/schemas/GalleryContentItem'
+        - $ref: '#/components/schemas/Title1lvlContentItem'
+        - $ref: '#/components/schemas/Title2lvlContentItem'
+        - $ref: '#/components/schemas/Title3lvlContentItem'
+        - $ref: '#/components/schemas/FactoidsContentItem'
+        - $ref: '#/components/schemas/NumberedListContentItem'
+        - $ref: '#/components/schemas/UnnumberedListContentItem'
+    TextContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        text:
+          type: string
+          example: Какой-то текст текстового блока
+      required:
+        - type
+        - text
+    VideoContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        video_url:
+          type: string
+          example: https://www.youtube.com/watch?v=cCSkv62weI0
+      required:
+        - type
+        - video_url
+    ImageContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        image:
+          $ref: '#/components/schemas/Image'
+      required:
+        - type
+        - image
+    GalleryContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        gallery:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+      required:
+        - type
+        - gallery
+    Title1lvlContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        text:
+          type: string
+          example: Заголовок 1-го уровня
+      required:
+        - type
+        - text
+    Title2lvlContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        text:
+          type: string
+          example: Заголовок 2-го уровня
+      required:
+        - type
+        - text
+    Title3lvlContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        text:
+          type: string
+          example: Заголовок 3-го уровня
+      required:
+        - type
+        - text
+    FactoidsContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        content:
+          type: array
+          items:
+            type: object
+            properties:
+              number:
+                type: string
+                example: "10"
+              unit:
+                type: string
+                example: "км"
+              description:
+                type: string
+                example: "До метро"
+            required:
+              - number
+              - unit
+              - description
+      required:
+        - type
+        - content
+    NumberedListContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        content:
+          type: array
+          items:
+            type: string
+            example: "Первый"
+      required:
+        - type
+        - content
+    UnnumberedListContentItem:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/ContentItemType'
+        content:
+          type: array
+          items:
+            type: string
+            example: "Первый"
+      required:
+        - type
+        - content
+    News:
+      type: object
+      description: Новость
+      properties:
+        id:
+          type: integer
+          example: 2
+        type:
+          $ref: '#/components/schemas/NewsType'
+        category:
+          $ref: '#/components/schemas/NewsCategory'
+        title:
+          type: string
+          example: "Заголовок"
+        description:
+          type: string
+          example: "Краткий текст описание"
+        tag:
+          type: string
+          nullable: true
+          example: "какой-то тег"
+        url:
+          type: string
+          nullable: true
+          example: "https://www.youtube.com/watch?v=cCSkv62weI0"
+        preview_image:
+          $ref: '#/components/schemas/Image'
+        uk_project:
+          type: object
+          properties:
+            id:
+              type: integer
+              example: 2
+            name:
+              type: string
+              example: "Варшавская - 1"
+          required:
+            - id
+            - name
+        created_at:
+          type: string
+          nullable: true
+          format: date
+      required:
+        - id
+        - type
+        - category
+        - title
+        - description
+        - tag
+        - url
+        - preview_image
+        - uk_project
+        - created_at
+    DetailNews:
+      allOf:
+        - $ref: '#/components/schemas/News'
+        - type: object
+          properties:
+            content_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentItem'
+          required:
+            - content_items
+    GeneralSettings:
+      type: object
+      description: Настройки
+      properties:
+        main_office_title:
+          type: string
+          nullable: true
+          description: Заголовок блока контактов главноего офиса
+          example: Главный офис ГК «Пионер»
+        main_office_address:
+          type: string
+          description: "Адрес главного офиса"
+          example: г. Москва, Кузнецова 1
+        main_office_phone:
+          type: string
+          description: "Телефон главного офиса"
+          example: +7 (495) 267-87-87
+        main_office_email:
+          type: string
+          description: "Email главного офиса"
+          example: info@pioneer.ru
+        main_office_lat:
+          type: string
+          description: "Широта главного офиса"
+          example: 34.12
+        main_office_long:
+          type: string
+          description: "Долгота главного офиса"
+          example: 54.15
+        phone:
+          type: string
+          description: "Телефон"
+          example: +7 (495) 267-87-87
+        offer_url:
+          type: string
+          description: "Ссылка на оферту"
+          example: https://pioneer.ru/oferta.pdf
+        consent_url:
+          type: string
+          description: "Ссылка на Пользовательское соглашение"
+          example: https://pioneer.ru/consent.pdf
+      required:
+        - main_office_title
+        - main_office_address
+        - main_office_phone
+        - main_office_email
+        - main_office_lat
+        - main_office_long
+        - phone
+        - offer_url
+        - consent_url
+    AboutCompany:
+      type: object
+      description: О группе компаний
+      properties:
+        content_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentItem'
+      required:
+        - content_items
+    ProjectType:
+      type: object
+      description: Тип проекта
+      properties:
+        name:
+          type: string
+          example: "Название"
+        projects:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+      required:
+        - name
+        - projects
+    ProjectAddress:
+      type: object
+      description: Адрес корпуса в проекте
+      properties:
+        id:
+          type: string
+          description: Идентификатор
+          example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+        name:
+          type: string
+          description: Название
+          nullable: true
+          example: Корпус 1
+      required:
+        - id
+        - name
+    Project:
+      type: object
+      description: Проект
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Название"
+        metro:
+          type: string
+          nullable: true
+          example: "Уникальное респектабельное расположение — ул. Гжатская, 9"
+        metro_color:
+          type: string
+          nullable: true
+          example: "#ffffff"
+        mortgage_calculator_id:
+          type: integer
+          nullable: true
+        lat:
+          type: number
+          example: "23.10"
+        long:
+          type: number
+          example: "27.20"
+        office_phone:
+          type: string
+          nullable: true
+          example: "+7 495 154 14 87"
+        office_address:
+          type: string
+          nullable: true
+          example: "ул. Гжатская 9"
+        office_lat:
+          type: number
+          nullable: true
+          example: "23.10"
+        office_long:
+          type: number
+          nullable: true
+          example: "27.20"
+        office_work_hours:
+          type: string
+          nullable: true
+        property_type_params:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              type:
+                $ref: '#/components/schemas/PropertyType'
+              url:
+                type: string
+                nullable: true
+                example: "https://ya.ru"
+            required:
+              - type
+              - url
+        mortgage_types:
+          type: array
+          items:
+            type: string
+            example: 'military'
+        crm_ids:
+          type: array
+          items:
+            type: string
+            example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+        payroll_bank_programs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 1
+              name:
+                type: string
+                example: 'Название зарплатного проекта'
+            required:
+              - id
+              - name
+        showcase_image:
+          $ref: '#/components/schemas/Image'
+        color:
+          type: string
+          example: "#ffffff"
+        description:
+          type: string
+          nullable: true
+          example: "Краткое описание"
+        city_id:
+          type: integer
+          nullable: true
+          example: 1
+        mortgage_min_property_price:
+          type: number
+          nullable: true
+          example: 6.1
+        mortgage_max_property_price:
+          type: number
+          nullable: true
+          example: 60.2
+        min_property_price:
+          type: number
+          nullable: true
+          description: Минимальная цена Квартиры в проекте (в млн.)
+          example: 60.2
+      required:
+        - id
+        - name
+        - metro
+        - metro_color
+        - mortgage_calculator_id
+        - mortgage_types
+        - payroll_bank_programs
+        - lat
+        - long
+        - office_phone
+        - office_address
+        - office_lat
+        - office_long
+        - office_work_hours
+        - showcase_image
+        - property_type_params
+        - color
+        - description
+        - city_id
+        - crm_ids
+        - mortgage_min_property_price
+        - mortgage_max_property_price
+        - min_property_price
+    DetailProject:
+      allOf:
+        - $ref: '#/components/schemas/Project'
+        - type: object
+          properties:
+            type:
+              $ref: '#/components/schemas/ProjectType'
+            main_image:
+              $ref: '#/components/schemas/Image'
+            map_image:
+              allOf:
+                - $ref: '#/components/schemas/Image'
+                - type: object
+                  nullable: true
+            articles:
+              type: array
+              items:
+                $ref: '#/components/schemas/Article'
+            galleries:
+              type: array
+              items:
+                $ref: '#/components/schemas/Gallery'
+            crm_addresses:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProjectAddress'
+            mortgage_programs:
+              type: array
+              items:
+                $ref: '#/components/schemas/MortgageProgram'
+          required:
+            - type
+            - main_image
+            - map_image
+            - articles
+            - galleries
+            - crm_addresses
+            - mortgage_programs
+    Article:
+      type: object
+      description: Статья
+      properties:
+        id:
+          type: integer
+          example: 2
+        title:
+          type: string
+          example: "Заголовок"
+        icon_image:
+          allOf:
+            - $ref: '#/components/schemas/Image'
+            - type: object
+              nullable: true
+      required:
+        - id
+        - title
+        - icon_image
+    DetailArticle:
+      allOf:
+        - $ref: '#/components/schemas/Article'
+        - type: object
+          properties:
+            content_items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentItem'
+          required:
+            - content_items
+    Gallery:
+      type: object
+      description: Галерея
+      properties:
+        title:
+          type: string
+          example: "Заголовок"
+        url:
+          type: string
+        image:
+          $ref: '#/components/schemas/Image'
+      required:
+        - title
+        - url
+        - image
+    MortgageProgram:
+      type: object
+      description: Предложения банка для проекта
+      properties:
+        id:
+          type: integer
+          example: 2
+        initial_payment:
+          type: number
+          description: Первоначальный взнос
+          example: 20010.12
+        citizenship:
+          type: string
+          description: Гражданство
+          example: Россия
+        period:
+          type: number
+          description: Период в годах
+          example: 24
+        addresses:
+          type: string
+          description: Аккредитованные корпуса
+          nullable: true
+          example: К1, Б2
+        bank_title:
+          type: string
+          description: Заголовок
+          example: "Сбербанк"
+        bank_logo:
+          $ref: '#/components/schemas/Image'
+      required:
+        - id
+        - initial_payment
+        - citizenship
+        - period
+        - addresses
+        - bank_title
+        - bank_logo
+    User:
+      type: object
+      description: Пользователь
+      properties:
+        id:
+          type: integer
+          example: 2
+        email:
+          type: string
+          example: "test@gmail.com"
+        phone:
+          type: string
+          example: "+79009009090"
+        first_name:
+          type: string
+          example: "Саша"
+        last_name:
+          type: string
+          example: "Иванов"
+        middle_name:
+          type: string
+          nullable: true
+          example: "Петрович"
+        birth_date:
+          type: string
+          format: date
+        enabled_notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationType'
+        has_accounts:
+          type: boolean
+          example: true
+        has_password:
+          type: boolean
+          example: true
+      required:
+        - id
+        - email
+        - phone
+        - first_name
+        - last_name
+        - middle_name
+        - birth_date
+        - enabled_notifications
+        - has_accounts
+        - has_password
+    Account:
+      type: object
+      description: Лицевой счет
+      properties:
+        number:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+        role:
+          $ref: '#/components/schemas/Role'
+        realty_type:
+          $ref: '#/components/schemas/AccountRealtyType'
+        address:
+          type: string
+          description: Адрес помещения
+          example: Гжатская 9, кв 21
+        address_id:
+          type: string
+          description: Идентификатор адреса корпуса
+          example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+        balance:
+          type: integer
+          description: Баланс лицевого счёта в копейках
+          example: -500000
+        services_debt:
+          type: integer
+          description: Сумма оплаты по неоплаченным по услугам в копейках
+          example: 0
+        service_seller_id:
+          type: string
+          description: Идентификатор мерчанта
+          example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+        not_paid_months:
+          type: integer
+          description: Количество неоплаченных месяцев
+          example: 3
+        is_meter_enter_period_active:
+          type: boolean
+          description: Флаг - период ввода показаний счетчиков активен
+          example: true
+        meter_enter_period:
+          $ref: '#/components/schemas/MeterEnterPeriod'
+        project_id:
+          type: integer
+          description: ID проекта
+          nullable: true
+          example: 10
+        project_name:
+          type: string
+          description: Название проекта
+          nullable: true
+          example: LIFE-БОТАНИЧЕСКИЙ САД
+        project_crm_1c_id:
+          type: string
+          description: ID проекта в CRM
+          nullable: true
+          example: 33e346f6-1358-4c53-87c0-a8284d905cb6
+      required:
+        - number
+        - role
+        - realty_type
+        - address
+        - address_id
+        - balance
+        - services_debt
+        - service_seller_id
+        - not_paid_months
+        - is_meter_enter_period_active
+        - meter_enter_period
+        - project_id
+        - project_name
+        - project_crm_1c_id
+    AccountAdditionalInfo:
+      type: object
+      description: Информация об объекте
+      properties:
+        name:
+          type: string
+          description: Название проекта
+          example: "LIFE-БОТАНИЧЕСКИЙ САД"
+        description:
+          type: string
+          example: "Краткое описание"
+        realty_type:
+          $ref: '#/components/schemas/AccountRealtyType'
+        account_number:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+        address:
+          type: string
+          description: Адрес
+          example: "Гжатская 9, кв 21"
+        postcode:
+          type: integer
+          description: Индекс
+          example: 410020
+        service_seller_name:
+          type: string
+          description: Управляющая организация
+          example: ПИОНЕР-СЕРВИС КУТУЗОВСКИЙ ООО
+        number:
+          type: integer
+          description: Номер квартиры
+          nullable: true
+          example: 79
+        rooms:
+          type: integer
+          description: Кол-во комнат
+          nullable: true
+          example: 2
+        total_area:
+          type: number
+          description: Общая площадь
+          nullable: true
+          example: 60.00
+        living_area:
+          type: number
+          description: Жилая площидь
+          nullable: true
+          example: 60.00
+        meters_count:
+          type: integer
+          description: Количество ИПУ
+          nullable: true
+          example: 3
+        floor:
+          type: integer
+          description: Этаж
+          nullable: true
+          example: 5
+        image:
+          $ref: '#/components/schemas/Image'
+        articles:
+          type: array
+          items:
+            $ref: '#/components/schemas/Article'
+      required:
+        - name
+        - service_seller_name
+        - description
+        - realty_type
+        - account_number
+        - address
+        - postcode
+        - number
+        - rooms
+        - total_area
+        - living_area
+        - meters_count
+        - floor
+        - image
+        - articles
+    BaseContact:
+      type: object
+      description: Базовый контакт
+      properties:
+        title:
+          type: string
+          description: Заголовок
+          example: "МЧС"
+        type:
+          $ref: '#/components/schemas/ContactType'
+        icon_image:
+          $ref: '#/components/schemas/Image'
+      required:
+        - title
+        - type
+        - icon_image
+    ContactPhone:
+      type: object
+      description: Контакт с телефоном
+      allOf:
+        - $ref: '#/components/schemas/BaseContact'
+        - type: object
+          properties:
+            phone:
+              type: string
+              description: Телефон
+              nullable: true
+              example: +79999123123
+          required:
+            - phone
+    ContactEmail:
+      type: object
+      description: Контакт с email
+      allOf:
+        - $ref: '#/components/schemas/BaseContact'
+        - type: object
+          properties:
+            email:
+              type: string
+              description: Email
+              nullable: true
+              example: info@pioneer.ru
+          required:
+            - email
+    ContactMap:
+      type: object
+      description: Контакт с картой
+      allOf:
+        - $ref: '#/components/schemas/BaseContact'
+        - type: object
+          properties:
+            lat:
+              type: string
+              description: Широта
+              nullable: true
+              example: 34.12
+            long:
+              type: string
+              description: Долгота
+              nullable: true
+              example: 53.15
+          required:
+            - lat
+            - long
+    ContactGroup:
+      type: object
+      description: Группа контактов
+      properties:
+        project:
+          type: array
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ContactPhone'
+              - $ref: '#/components/schemas/ContactEmail'
+              - $ref: '#/components/schemas/ContactMap'
+        common:
+          type: array
+          items:
+            oneOf:
+              - allOf:
+                  - $ref: '#/components/schemas/ContactPhone'
+                  - type: object
+                    properties:
+                      city:
+                        $ref: '#/components/schemas/City'
+                    required:
+                      - city
+              - allOf:
+                  - $ref: '#/components/schemas/ContactEmail'
+                  - type: object
+                    properties:
+                      city:
+                        $ref: '#/components/schemas/City'
+                    required:
+                      - city
+              - allOf:
+                  - $ref: '#/components/schemas/ContactMap'
+                  - type: object
+                    properties:
+                      city:
+                        $ref: '#/components/schemas/City'
+                    required:
+                      - city
+      required:
+        - project
+        - common
+    AccountDocument:
+      type: object
+      description: Документы по помещению
+      properties:
+        id:
+          type: string
+          description: Идентификатор
+        name:
+          type: string
+          description: Название
+        url:
+          type: string
+          description: Ссылка
+      required:
+        - id
+        - name
+        - url
+    Receipt:
+      type: object
+      description: Квитанция ЖКУ
+      properties:
+        year:
+          type: integer
+          description: Год, за который выставлена Квитанция
+          example: 2021
+        month:
+          type: integer
+          description: Месяц, за который выставлена Квитанция
+          example: 05
+        total:
+          type: integer
+          description: Сумма квитанции в копейках
+          example: 827453
+        pdf:
+          type: string
+          description: Внутренняя ссылка на PDF с квитанцией
+          nullable: true
+          example: "%SOME_URL%"
+        status:
+          $ref: '#/components/schemas/ReceiptStatus'
+        paid:
+          type: integer
+          description: Оплаченная сумма в копейках
+          example: 827453
+        is_paid:
+          type: boolean
+          description: Оплачена ли полностью
+          example: true
+      required:
+        - year
+        - month
+        - total
+        - pdf
+        - status
+        - paid
+        - is_paid
+    Meter:
+      type: object
+      description: Счётчик
+      properties:
+        id:
+          type: string
+          description: Идентификатор счётчика
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        type:
+          $ref: '#/components/schemas/MeterType'
+        subtype:
+          $ref: '#/components/schemas/MeterSubtype'
+        data_input_type:
+          $ref: '#/components/schemas/MeterDataInputType'
+        number:
+          type: string
+          description: Номер счётчика
+          example: "312012929344"
+        is_previous_value_calculated_by_standard:
+          type: boolean
+          nullable: true
+          description: Признак того, что предыдущий период был рассчитан по нормативу, без передачи показаний
+          example: true
+        is_values_entered_in_current_period:
+          type: boolean
+          nullable: true
+          description: Признак того, что в текущем периоде уже были введены показания
+          example: false
+        date_verification:
+          type: string
+          format: date
+          nullable: true
+          description: Дата поверки
+          example: 2031-10-01
+        values:
+          type: array
+          description: Показания по тарифам
+          items:
+            $ref: '#/components/schemas/MeterValue'
+        name:
+          type: string
+          description: Название счётчика
+          nullable: true
+          example: "Счетчик на кухне"
+      required:
+        - id
+        - type
+        - subtype
+        - data_input_type
+        - number
+        - is_previous_value_calculated_by_standard
+        - is_values_entered_in_current_period
+        - date_verification
+        - values
+        - name
+    MeterValue:
+      type: object
+      description: Показания счётчика по одному тарифу
+      properties:
+        tariff_id:
+          type: string
+          description: Идентификатор тарифа
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        tariff_name:
+          type: string
+          description: Название тарифа
+          example: Ночной
+        current_value:
+          type: number
+          nullable: true
+          description: |
+            Текущее значение, переданное автоматически или вручную в текущем периоде.
+            Если счётчик ручной, а показания в текущем периоде не были переданы, вернуть null.
+          example: 40.34
+        previous_value:
+          type: number
+          description: Значение в предыдущем периоде
+          example: 20.12
+      required:
+        - tariff_id
+        - tariff_name
+        - сurrent_value
+        - previous_value
+    MeterEnterPeriod:
+      type: object
+      description: Период ввода показаний счетчиков
+      properties:
+        start_date:
+          type: string
+          nullable: true
+          description: Дата начала (включительно)
+          example: "2021-01-01"
+        end_date:
+          type: string
+          nullable: true
+          description: Дата завершения (включительно)
+          example: "2021-01-15"
+      required:
+        - start_date
+        - end_date
+    RelationshipInvite:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        account_number:
+          type: string
+          example: "79009009090"
+        role:
+          $ref: '#/components/schemas/Role'
+        accepted_at:
+          type: string
+          format: datetime
+          description: Дата и время принятия
+          example: "2021-10-01 12:42:23"
+        accepted_by:
+          type: integer
+          example: 2
+        created_at:
+          type: string
+          format: datetime
+          description: Дата и время создания
+          example: "2021-10-01 12:42:23"
+        last_name:
+          type: string
+          example: "Иванов"
+        first_name:
+          type: string
+          example: "Иван"
+        phone:
+          type: string
+          description: Телефон
+          example: "+79001000001"
+        birth_date:
+          type: string
+          format: date
+          description: Дата рождения
+          example: "2021-10-01"
+      required:
+        - id
+        - account_number
+        - role
+        - accepted_at
+        - accepted_by
+        - created_at
+        - last_name
+        - first_name
+        - phone
+        - birth_date
+    Relationship:
+      type: object
+      properties:
+        account_number:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+        role:
+          $ref: '#/components/schemas/Role'
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - account_number
+        - role
+        - user
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        last_name:
+          type: string
+          example: "Иванов"
+        first_name:
+          type: string
+          example: "Иван"
+        middle_name:
+          type: string
+          nullable: true
+          example: "Иванович"
+        gender:
+          $ref: '#/components/schemas/Gender'
+        phone:
+          type: string
+          description: Телефон
+          example: "+79001000001"
+        email:
+          type: string
+          nullable: true
+          example: "test@test.ru"
+        birth_date:
+          type: string
+          format: date
+          description: Дата рождения
+          example: "2021-10-01"
+      required:
+        - id
+        - last_name
+        - first_name
+        - phone
+        - birth_date
+    MeterStatisticsValue:
+      type: object
+      properties:
+        tariff:
+          type: string
+          description: Название тарифа
+          example: T1
+        total:
+          type: number
+          description: Суммарно
+          example: 31.45
+        average:
+          type: number
+          description: Среднее
+          example: 11.05
+        data:
+          type: object
+          description: Потребление по тарифам
+          properties:
+            1:
+              type: number
+              example: 676.98
+            2:
+              type: number
+              example: 712.17
+            3:
+              type: number
+              example: 744.64
+            4:
+              type: number
+              example: 0
+            5:
+              type: number
+              example: 0
+            6:
+              type: number
+              example: 0
+            7:
+              type: number
+              example: 0
+            8:
+              type: number
+              example: 0
+            9:
+              type: number
+              example: 0
+            10:
+              type: number
+              example: 0
+            11:
+              type: number
+              example: 0
+            12:
+              type: number
+              example: 744
+          required: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"]
+      required:
+        - tariff
+        - total
+        - average
+        - data
+    MeterStatistics:
+      type: object
+      description: Статистика потребления
+      properties:
+        type:
+          $ref: '#/components/schemas/MeterType'
+        subtype:
+          allOf:
+            - $ref: '#/components/schemas/MeterSubtype'
+            - type: object
+              nullable: true
+        unit:
+          type: string
+          description: Наименование единицы измерения счётчика
+          nullable: true
+          example: кВт⋅ч
+        total:
+          type: number
+          description: Суммарно
+          example: 31.45
+        average:
+          type: number
+          description: Среднее
+          example: 11.05
+        statistics:
+          type: array
+          description: Помесячная статистика за указанный период
+          items:
+            $ref: '#/components/schemas/MeterStatisticsValue'
+      required:
+        - type
+        - subtype
+        - unit
+        - total
+        - average
+        - statistics
+    MeterTariffValue:
+      type: object
+      properties:
+        subtype:
+          type: string
+          description: Название тарифа
+          example: Ночной
+        cost:
+          type: string
+          description: Стоимость единицы потребления
+          example: 4.26
+      required:
+        - name
+        - cost
+    MeterTariff:
+      type: object
+      description: Описание тарифов по услуге
+      properties:
+        type:
+          type: string
+          description: |
+            Название услуги
+            - maintenance – Содержание и ремонт общего имущества МКД
+            - electricity – Электроэнергия
+            - heat – Теплоснабжение
+            - water_hot – Горячее водоснабжение
+            - water_supply – Холодная вода для ГВС
+            - water_cold – Холодное водоснабжение
+            - drainage – Водоотведение
+            - consierge – Услуги консьерж сервиса и охрана
+            - windows_clean – Мытье остекления квартиры от атмосферных загрязнений методом промышленного альпинизма
+            - garbage – Обращение с ТК
+          enum:
+            - maintenance
+            - electricity
+            - heat
+            - water_hot
+            - water_supply
+            - water_cold
+            - drainage
+            - consierge
+            - windows_clean
+            - garbage
+          example: maintenance
+        name:
+          type: string
+          description: Наименование тарифа
+          nullable: true
+          example: Отопление
+        unit:
+          type: string
+          description: Наименование единицы измерения услуги
+          example: кВт⋅ч
+        values:
+          type: array
+          description: Тарифы для данной услуги
+          items:
+            $ref: '#/components/schemas/MeterTariffValue'
+      required:
+        - type
+        - name
+        - unit
+        - values
+    TransactionLog:
+      type: object
+      description: Описание транзакции
+      properties:
+        account_number:
+          type: string
+          description: Номер лицевого счёта
+          example: "7715801857552"
+        payment_method_type:
+          $ref: '#/components/schemas/PaymentMethodType'
+        title:
+          type: string
+          description: Заголовок
+          example: Оплата заявки № 2323434
+        subtitle:
+          type: string
+          description: Подзаголовок
+          example: Клининговые услуги
+        amount:
+          type: integer
+          description: Сумма в копейках
+          example: 500000
+        claim_id:
+          type: string
+          description: ID заявки
+          nullable: true
+          example: a8b44ebf-d2d3-7e78-adc7-63db6a62f549
+        claim_number:
+          type: string
+          description: Номер заявки
+          nullable: true
+          example: 5467
+        claim_category_name:
+          type: string
+          description: Название категории заявки
+          nullable: true
+          example: Клининговые услуги
+        created_at:
+          type: string
+          format: date
+      required:
+        - account_number
+        - payment_method_type
+        - title
+        - subtitle
+        - amount
+        - claim_id
+        - claim_number
+        - claim_category_name
+        - created_at
+    ClaimCatalogueItemImages:
+      type: object
+      description: Каталог - картинки
+      properties:
+        main_large:
+          type: string
+          description: Ссылка на главную большую картинку
+          nullable: true
+          example: "https://test.com/image.png"
+        main_middle:
+          type: string
+          description: Ссылка на главную среднюю картинку
+          nullable: true
+          example: "https://test.com/image.png"
+        main_small:
+          type: string
+          description: Ссылка на главную маленькую картинку
+          nullable: true
+          example: "https://test.com/image.png"
+        catalogue_image:
+          type: string
+          description: Ссылка на картинку каталога
+          nullable: true
+          example: "https://test.com/image.png"
+        carousel:
+          type: array
+          description: Картинки для карусели
+          items:
+            type: string
+            description: Ссылка на картинку
+            example: "https://test.com/image.png"
+      required:
+        - main_large
+        - main_middle
+        - main_small
+        - catalogue_image
+        - carousel
+    ClaimExecutor:
+      type: object
+      description: Исполнитель заявки
+      properties:
+        name:
+          type: string
+          description: Имя
+          example: "Валерий"
+        job_title:
+          type: string
+          description: Должность
+          nullable: true
+          example: "Электрик"
+        url_photo:
+          type: string
+          description: Фото
+          nullable: true
+          example: "https://test.com/image.png"
+      required:
+        - name
+        - job_title
+        - url_photo
+    ClaimPassCar:
+      type: object
+      description: Автомобиль в заявке на пропуск
+      nullable: true
+      properties:
+        car_type:
+          $ref: '#/components/schemas/ClaimPassCarType'
+        number:
+          type: string
+          description: Номер
+          example: "У645ЕА116"
+      required:
+        - car_type
+        - number
+    ClaimPassHuman:
+      type: object
+      description: Человек в заявке на пропуск
+      nullable: true
+      properties:
+        full_name:
+          type: string
+          description: ФИО
+          example: "Иванов Иван Иванович"
+      required:
+        - full_name
+    ClaimService:
+      type: object
+      description: Услуга в заявке
+      properties:
+        id:
+          type: string
+          description: Идентификатор
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        quantity:
+          type: number
+          description: Кол-во
+          nullable: true
+          example: 1
+        order_number:
+          type: integer
+          description: Номер заказа
+          nullable: true
+          example: 46
+        category_id:
+          type: string
+          description: Идентификатор категории
+          nullable: true
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        category_name:
+          type: string
+          description: Название категории
+          nullable: true
+          example: "Коммунальные услуги"
+        catalogue_item:
+          $ref: '#/components/schemas/ClaimCatalogueItem'
+      required:
+        - id
+        - quantity
+        - order_number
+        - category_id
+        - category_name
+        - catalogue_item
+    ClaimImage:
+      type: object
+      description: Изображение в заявке
+      properties:
+        id:
+          type: string
+          description: Идентификатор
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        name:
+          type: string
+          description: Название
+          example: "Файл"
+        type:
+          $ref: '#/components/schemas/ClaimDocumentType'
+        url:
+          type: string
+          description: Ссылка
+          example: "https://ya.ru/file.pdf"
+      required:
+        - id
+        - name
+        - type
+        - url
+    ClaimMessage:
+      type: object
+      description: Сообщение в заявке
+      properties:
+        id:
+          type: string
+          description: Идентификатор
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        text:
+          type: string
+          description: Текст сообщения
+          example: "Здравствуйте, я бы хотел узнать, как купить квартиру?"
+        message_date:
+          type: string
+          format: datetime
+          description: Дата и время создания
+          example: "2021-10-01 12:42:23"
+        type:
+          $ref: '#/components/schemas/ClaimMessageType'
+        sender_name:
+          type: string
+          nullable: true
+          description: ФИО отправителя
+          example: Иванов Иван
+        sender_position:
+          type: string
+          nullable: true
+          description: Должность отправителя
+          example: Сантехник
+      required:
+        - id
+        - text
+        - message_date
+        - type
+        - sender_name
+        - sender_position
+    ClaimCatalogueTheme:
+      type: object
+      description: Каталог - тема
+      properties:
+        id:
+          type: string
+          description: Идентификатор темы
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimCatalogueItem'
+      required:
+        - id
+        - items
+    ClaimCatalogueItem:
+      type: object
+      description: Каталог - категория/услуга
+      properties:
+        id:
+          type: string
+          description: Идентификатор категории/услуги
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        name:
+          type: string
+          description: Название
+          example: "Клининг"
+        parent_id:
+          type: string
+          description: Идентификатор родителя
+          nullable: true
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        theme:
+          allOf:
+            - $ref: '#/components/schemas/ClaimTheme'
+            - type: object
+              nullable: true
+        group:
+          $ref: '#/components/schemas/ClaimCatalogueItemGroup'
+        price_type:
+          $ref: '#/components/schemas/ClaimPriceType'
+        price:
+          type: integer
+          description: Цена в копейках
+          nullable: true
+          example: 9000
+        is_popular:
+          type: boolean
+          description: Популярная категория/услуга
+          example: true
+        is_service:
+          type: boolean
+          description: Услуга или нет
+          example: true
+        description:
+          type: string
+          description: Комментарий
+          nullable: true
+          example: "Тестовая заявка"
+        time_localization:
+          type: integer
+          nullable: true
+        time_reaction:
+          type: integer
+          nullable: true
+        time_solution:
+          type: integer
+          nullable: true
+        unit:
+          type: array
+          nullable: true
+          items:
+            properties:
+              code:
+                type: string
+                example: "10"
+              name:
+                type: string
+                example: "кв. м"
+        select_option:
+          allOf:
+            - $ref: '#/components/schemas/ClaimCatalogueItemSelectOption'
+            - type: object
+              nullable: true
+        work_schedule:
+          type: array
+          items:
+            properties:
+              code:
+                type: string
+                example: "10"
+              name:
+                type: string
+                example: "Рабочий день"
+        title:
+          type: string
+          description: Заголовок
+          example: "Клининг"
+        order:
+          type: integer
+          nullable: true
+          description: Позиция для сортировки
+          example: 29
+        execution_norm:
+          type: integer
+          nullable: true
+          description: Норма времени выполнения
+          example: 480
+        nds:
+          type: array
+          nullable: true
+          items:
+            properties:
+              code:
+                type: string
+                example: "0"
+              name:
+                type: string
+                example: "Без НДС"
+        images:
+          $ref: '#/components/schemas/ClaimCatalogueItemImages'
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimCatalogueItem'
+      required:
+        - id
+        - name
+        - parent_id
+        - theme
+        - group
+        - price_type
+        - price
+        - is_popular
+        - is_service
+        - description
+        - time_localization
+        - time_reaction
+        - time_solution
+        - unit
+        - select_option
+        - work_schedule
+        - title
+        - order
+        - execution_norm
+        - nds
+        - images
+        - children
+    Claim:
+      type: object
+      description: Заявка
+      properties:
+        id:
+          type: string
+          description: Идентификатор заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        claim_number:
+          type: string
+          description: Номер заявки
+          nullable: true
+          example: "123"
+        theme:
+          $ref: '#/components/schemas/ClaimTheme'
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        created_at:
+          type: string
+          format: datetime
+          description: Дата и время создания
+          example: "2021-10-01 12:42:23"
+        closed_at:
+          type: string
+          format: datetime
+          description: Дата и время закрытия
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        payment_status:
+          $ref: '#/components/schemas/ClaimPaymentStatus'
+        comment:
+          type: string
+          description: Комментарий
+          nullable: true
+          example: "Тестовая заявка"
+        arrival_date:
+          type: string
+          format: datetime
+          description: Дата и время прибытия
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        pdf:
+          type: string
+          description: Ссылка на квитанцию
+          nullable: true
+          example: "https://pionner.ru/receipt.pdf"
+        payment_date:
+          type: string
+          format: datetime
+          description: Дата и время оплаты
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        total_payment:
+          type: integer
+          description: Сумма в копейках
+          nullable: true
+          example: 9000
+        scheduled_start:
+          type: string
+          format: datetime
+          description: Дата и время запланированного начала
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        scheduled_end:
+          type: string
+          format: datetime
+          description: Дата и время запланированного завершения
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        pass_type:
+          $ref: '#/components/schemas/ClaimPassType'
+        pass_status:
+          $ref: '#/components/schemas/ClaimPassStatus'
+        pass_car:
+          $ref: '#/components/schemas/ClaimPassCar'
+        pass_human:
+          $ref: '#/components/schemas/ClaimPassHuman'
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimService'
+        confirmation_code:
+          type: string
+          description: Код подтверждения принятия работ
+          nullable: true
+          example: "123123"
+        comment_quality:
+          type: string
+          description: Комментарий оценки
+          nullable: true
+          example: "Все понравилось."
+        rating:
+          type: string
+          enum:
+            - 1
+            - 2
+            - 3
+            - 4
+            - 5
+          description: Оценка
+          nullable: true
+          example: "1"
+      required:
+        - id
+        - claim_number
+        - theme
+        - status
+        - created_at
+        - closed_at
+        - payment_status
+        - comment
+        - arrival_date
+        - payment_date
+        - total_payment
+        - scheduled_start
+        - scheduled_end
+        - pass_type
+        - pass_status
+        - pass_car
+        - pass_human
+        - services
+        - confirmation_code
+        - comment_quality
+        - rating
+    DetailClaim:
+      allOf:
+        - $ref: '#/components/schemas/Claim'
+        - type: object
+          properties:
+            executors:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClaimExecutor'
+            images:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClaimImage'
+          required:
+            - executors
+            - images
+    City:
+      type: object
+      description: Город
+      properties:
+        id:
+          type: integer
+          description: Идентификатор города
+          example: "1"
+        name:
+          type: string
+          description: Название города
+          example: "Москва"
+      required:
+        - id
+        - name
+    LoanOffer:
+      type: object
+      description: Ипотечное предложение
+      properties:
+        id:
+          type: integer
+          description: Идентификатор объекта
+          example: "1"
+        bank_id:
+          type: integer
+          description: Идентификатор кредитной организации
+          example: "1"
+        bank_logo:
+          type: string
+          description: URL логотипа кредитной организации
+          example: "https://www.sberbank.ru/social-ru.png"
+        bank_name:
+          type: string
+          description: Название кредитной организации
+          example: "Сбербанк"
+        max_age:
+          type: integer
+          description: Максимальный возраст (лет)
+          example: "50"
+        max_credit_amount:
+          type: integer
+          description: Максимальная сумма кредита
+          example: "10000000"
+        max_credit_period:
+          type: integer
+          description: Максимальный срок кредита
+          example: "20"
+        min_age:
+          type: integer
+          description: Минимальный возраст (лет)
+          example: "20"
+        min_initial_payment:
+          type: number
+          description: Минимальный первоначальный взнос, %
+          example: "20.1"
+        min_last_job_exp:
+          type: integer
+          description: Минимальный стаж на последнем месте работы (месяцев)
+          example: "36"
+        min_overall_exp:
+          type: integer
+          description: Минимальный общий стаж (месяцев)
+          example: "36"
+        name:
+          type: string
+          description: Название программы
+          example: "Кредитная программа"
+        periods:
+          type: array
+          description: Информация о сроке ипотеки в месяцах и ежемесячном платеже
+          items:
+            type: object
+            properties:
+              amount:
+                type: integer
+                description: Сумма ежемесячного платежа в копейках
+              period:
+                type: integer
+                description: Срок ипотеки в месяцах
+            required:
+              - amount
+              - period
+        rate:
+          type: number
+          description: Процентная ставка
+          example: "8.7"
+        realty_cost_increase_percent:
+          type: number
+          description: Процент увеличения стоимости недвижимости по спецпрограмме застройщика
+          example: "7"
+        recommended_income_coeff:
+          type: number
+          description: Коэфициент для вычисления рекомендуемого дохода
+          example: "6.5"
+        strictly_matches_loan_period:
+          type: boolean
+          description: Соответствует ли программа по условиям указанному сроку кредита
+          example: true
+      required:
+        - id
+        - bank_id
+        - bank_logo
+        - bank_name
+        - max_age
+        - max_credit_amount
+        - max_credit_period
+        - min_age
+        - min_initial_payment
+        - min_last_job_exp
+        - min_overall_exp
+        - name
+        - periods
+        - rate
+        - realty_cost_increase_percent
+        - recommended_income_coeff
+        - strictly_matches_loan_period
+    Notification:
+      type: object
+      description: Уведомление
+      properties:
+        id:
+          type: integer
+          description: Идентификатор уведомления
+          example: "1"
+        title:
+          type: string
+          description: Заголовок
+          example: Заголовок
+        text:
+          type: string
+          description: Текст
+          example: "Текст уведомления"
+        is_viewed:
+          type: boolean
+          description: Показано ли уведомление текущему пользователю. Если запрос не авторизован вернется null
+          example: true
+          nullable: true
+        created_at:
+          type: string
+          nullable: true
+          format: date
+        action:
+          allOf:
+            - $ref: '#/components/schemas/Action'
+            - type: object
+              nullable: true
+      required:
+        - id
+        - title
+        - text
+        - created_at
+        - action
+        - is_viewed
+    Demand:
+      type: object
+      description: Заявка
+      properties:
+        id:
+          type: string
+          description: Идентификатор заявки
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        is_booking_paid:
+          type: boolean
+          description: Оплачена ли заявка
+          nullable: true
+          example: false
+        begin_date:
+          type: string
+          format: datetime
+          description: Дата и время начала брони
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        end_date:
+          type: string
+          format: datetime
+          description: Дата и время завершения брони
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        status:
+          $ref: '#/components/schemas/DemandStatus'
+        state:
+          $ref: '#/components/schemas/DemandState'
+        quantity:
+          type: number
+          description: Площадь
+          nullable: true
+          example: 90.12
+        sum:
+          type: number
+          description: Сумма
+          nullable: true
+          example: 14000000.12
+        name:
+          type: string
+          description: Наименование договора
+          nullable: true
+          example: "Продажа ДДУ с Эскроу"
+        paid_booking_sum:
+          type: number
+          description: Стоимость платного бронирования
+          nullable: true
+          example: 15000
+        paid_booking_period_days:
+          type: integer
+          description: Период платного бронирования в днях
+          nullable: true
+          example: 7
+        paid_booking_payment_end_at:
+          type: string
+          format: datetime
+          description: Дата и время завершения бесплатной брони
+          nullable: true
+          example: "2021-10-01 12:42:23"
+        property:
+          $ref: '#/components/schemas/Property'
+      required:
+        - id
+        - is_booking_paid
+        - begin_date
+        - end_date
+        - status
+        - state
+        - quantity
+        - sum
+        - name
+        - paid_booking_sum
+        - paid_booking_period_days
+        - paid_booking_payment_end_at
+        - property
+    DetailDemand:
+      allOf:
+        - $ref: '#/components/schemas/Demand'
+        - type: object
+          properties:
+            payment_mode:
+              $ref: '#/components/schemas/PaymentMode'
+            owner_type:
+              $ref: '#/components/schemas/OwnerType'
+            is_finishing_available:
+              type: boolean
+              description: Активна продажа отделки
+              nullable: true
+              example: false
+            finishing_sales_start:
+              type: string
+              format: datetime
+              description: Дата и время старта продаж отделки
+              nullable: true
+              example: "2021-10-01 12:42:23"
+            finishing_sales_stop:
+              type: string
+              format: datetime
+              description: Дата и время завершения продаж отделки
+              nullable: true
+              example: "2021-10-01 12:42:23"
+          required:
+            - payment_mode
+            - owner_type
+            - is_finishing_available
+            - finishing_sales_start
+            - finishing_sales_stop
+    PropertyImage:
+      type: object
+      nullable: true
+      properties:
+        url:
+          type: string
+          example: https://test.com/image.png
+      required:
+        - url
+    Property:
+      type: object
+      description: Объект недвижимости
+      properties:
+        type:
+          $ref: '#/components/schemas/SalesPropertyType'
+        variant:
+          $ref: '#/components/schemas/PropertyVariant'
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+        number:
+          type: string
+          description: Номер
+          example: "124"
+        layout_id:
+          type: string
+          description: ID секции
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        layout_number:
+          type: string
+          description: Номер секции
+          example: "1"
+        floor:
+          type: integer
+          description: Этаж
+          example: 9
+        rooms:
+          type: integer
+          description: Кол-во комнат
+          example: 2
+        is_escrow:
+          type: boolean
+          description: Есть эскроу
+          nullable: true
+          example: true
+        escrow_bank_id:
+          type: string
+          description: ID эскроу банка
+          nullable: true
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        escrow_bank_name:
+          type: string
+          description: Названия эскроу банка
+          nullable: true
+          example: "Сбербанк"
+        project_name:
+          type: string
+          description: Названия проекта
+          nullable: true
+          example: "ЖК Малиновка"
+        address:
+          $ref: '#/components/schemas/Address'
+        plan:
+          $ref: '#/components/schemas/PropertyImage'
+      required:
+        - type
+        - variant
+        - status
+        - number
+        - layout_id
+        - layout_number
+        - floor
+        - rooms
+        - is_escrow
+        - escrow_bank_id
+        - escrow_bank_name
+        - project_name
+        - address
+        - plan
+    FavoriteProperty:
+      type: object
+      description: Избранный объект недвижимости
+      properties:
+        id:
+          type: string
+          description: ID объекта недвижимости
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        code:
+          type: string
+          description: Код объекта недвижимости
+          example: "PMSK-К1-01-09"
+        type:
+          $ref: '#/components/schemas/SalesPropertyType'
+        variant:
+          $ref: '#/components/schemas/PropertyVariant'
+        status:
+          $ref: '#/components/schemas/PropertyStatus'
+        number:
+          type: string
+          description: Номер
+          example: "124"
+        floor:
+          type: integer
+          description: Этаж
+          example: 9
+        address_name:
+          type: string
+          description: Название корпуса
+          example: "Пионер МСК Корпус 1"
+        layout_number:
+          type: string
+          description: Номер секции
+          example: "1"
+        rooms:
+          type: integer
+          description: Кол-во комнат
+          example: 2
+        quantity:
+          type: number
+          description: Площадь
+          nullable: true
+          example: 90.1400000000
+        price:
+          type: number
+          description: Стоимость
+          nullable: true
+          example: 15779277.4200
+        plan:
+          type: string
+          description: Ссылка на планировку
+          nullable: true
+          example: "http://i-crm.pioneer.ru/images/Планировки/Варшавская/Квартал 1/Секция 01/1-9.jpg"
+        url:
+          type: string
+          description: Ссылка на вебвью
+          nullable: true
+          example: "http://webview.com"
+      required:
+        - id
+        - code
+        - type
+        - variant
+        - status
+        - number
+        - floor
+        - address_name
+        - layout_number
+        - rooms
+        - quantity
+        - price
+        - plan
+        - url
+    Address:
+      type: object
+      description: Адрес (Корпус) объекта
+      properties:
+        id:
+          type: string
+          description: ID адреса
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        name:
+          type: string
+          description: Название адреса
+          example: "Пионер МСК Корпус 1"
+        gk_id:
+          type: string
+          description: ID ЖК
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        address:
+          type: string
+          description: Почтовый адрес
+          example: "г. Москва, ул. Строителей, д.28"
+        region_code:
+          type: string
+          description: Код региона
+          example: "77"
+        region_name:
+          type: string
+          description: Название региона
+          example: "Москва"
+        website:
+          type: string
+          description: Сайт
+          nullable: true
+          example: "http://pioneer.ru"
+      required:
+        - id
+        - name
+        - gk_id
+        - address
+        - region_code
+        - region_name
+        - website
+    Bank:
+      type: object
+      description: Банк
+      properties:
+        id:
+          type: string
+          description: Идентификатор банка
+          example: "33e346f6-1358-4c53-87c0-a8284d905cb6"
+        name:
+          type: string
+          description: Наименование
+          example: "Сбербанк"
+        name_short:
+          type: string
+          description: Краткое наименование
+          nullable: true
+          example: "Сбер"
+        name_full:
+          type: string
+          description: Полное наименование
+          nullable: true
+          example: "ОАО Сбербанк"
+        type:
+          $ref: '#/components/schemas/BankType'
+        append_info:
+          $ref: '#/components/schemas/BankInfo'
+      required:
+        - id
+        - name
+        - name_short
+        - name_full
+        - type
+        - append_info
+    BankInfo:
+      type: object
+      description: Информация по банку
+      nullable: true
+      properties:
+        title:
+          type: string
+          description: Заголовок
+          example: "Сбербанк"
+        logo_image:
+          $ref: '#/components/schemas/Image'
+        price:
+          type: number
+          description: Цена
+          example: 2000.00
+        link:
+          type: string
+          description: Ссылка
+          nullable: true
+          example: "http://ya.ru"
+      required:
+        - title
+        - logo_image
+        - price
+        - link
+    UserDocument:
+      type: object
+      description: Документ пользователя
+      properties:
+        id:
+          type: string
+          description: Идентификатор документа
+          example: '33e346f6-1358-4c53-87c0-a8284d905cb6'
+        name:
+          type: string
+          description: Название
+          example: 'Name'
+        file_name:
+          type: string
+          description: Название файла
+          example: '12345text.pdf'
+        mime_type:
+          type: string
+          description: Mime тип документа
+          example: 'application/pdf'
+        type:
+          $ref: '#/components/schemas/UserDocumentType'
+        processing_status:
+          $ref: '#/components/schemas/DocumentProcessingStatus'
+      required:
+        - id
+        - name
+        - file_name
+        - mime_type
+        - type
+        - processing_status
+    Action:
+      type: object
+      description: Объект перехода для отображения ссылки
+      properties:
+        type:
+          type: string
+          description: Тип сущности
+        payload:
+          type: object
+          description: Данные к которым относится сущность перехода
+          nullable: true
+      required:
+        - type
+        - payload
+    DeletingReason:
+      type: object
+      description: Причина удаления аккаунта
+      properties:
+        value:
+          type: string
+          description: Строковое значение
+        title:
+          type: string
+          description: Название
+      required:
+        - value
+        - title
+  headers:
+    XRateLimitVerificationCodeDailyLimit:
+      description: Количество разрешенных запросов в день
+      schema:
+        type: integer
+    XRateLimitVerificationCodeDailyRemaining:
+      description: Количество оставшихся запросов на день
+      schema:
+        type: integer
+    XRateLimitVerificationCodeDailyTimer:
+      description: Время до начала следующего периода
+      schema:
+        type: integer
+    XRateLimitVerificationCodeDailyRetryAfter:
+      description: Количество секунд до начала следующей попытки
+      schema:
+        type: integer
+    XRateLimitVerificationCodeDailyReset:
+      description: Время начала следующей попытки (Unix timestamp)
+      schema:
+        type: integer
+    XRateLimitVerificationCodeMinuteLimit:
+      description: Количество разрешенных запросов в минуту
+      schema:
+        type: integer
+    XRateLimitVerificationCodeMinuteRemaining:
+      description: Количество оставшихся запросов в минуту
+      schema:
+        type: integer
+    XRateLimitVerificationCodeMinuteTimer:
+      description: Время до начала следующего периода
+      schema:
+        type: integer
+    XRateLimitVerificationCodeMinuteRetryAfter:
+      description: Количество секунд до начала следующей попытки
+      schema:
+        type: integer
+    XRateLimitVerificationCodeMinuteReset:
+      description: Время начала следующей попытки (Unix timestamp)
+      schema:
+        type: integer
+    XRateLimitLimit:
+      schema:
+        type: integer
+      description: Лимит запросов в час.
+    XRateLimitRemaining:
+      schema:
+        type: integer
+      description: Количество запросов, оставшихся для временного окна.
+    XRateLimitReset:
+      schema:
+        type: string
+        format: date-time
+      description: Дата/время в формате UTC, когда сбрасывается текущее окно лимита запросов.
+  responses:
+    ValidationError:
+      description: Неверные параметры запроса
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                properties:
+                  field_name:
+                    type: array
+                    items:
+                      type: string
+            example:
+              message: The given data was invalid.
+              errors:
+                phone:
+                  - The phone field is required.
+            required:
+              - message
+              - errors
+    UserUnauthorized:
+      description: Ошибка авторизации
+    TooManyBookingAttempts:
+      description: Слишком много запросов на бесплатное бронирование.
+    PropertyAlreadyInFavorites:
+      description: Объект недвижимости уже в избранном.
+    UserRegistrationHaveIncorrectData:
+      description: Некорректные данные.
+    InviteAlreadyExistOrYouCantInviteYourself:
+      description: Приглашение уже отправлено или нельзя пригласить самого себя.
+    TooManyAuthAttempts:
+      description: Слишком много попыток авторизации.
+      headers:
+        X-RateLimit-Limit:
+          $ref: "#/components/headers/XRateLimitLimit"
+        X-RateLimit-Remaining:
+          $ref: "#/components/headers/XRateLimitRemaining"
+    ActionUnauthorized:
+      description: Действие запрещено
+    Forbidden:
+      description: Доступ запрещен
+    SuccessfulAction:
+      description: Успешная операция
+    ConflictAction:
+      description: Конфликт
+    NotFound:
+      description: Объект не найден
+    UserSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/User'
+    TransactionLogListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              transaction_logs:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransactionLog'
+              meta:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                required:
+                  - pagination
+            required:
+              - transaction_logs
+              - meta
+    AccountListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Account'
+    AccountSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Account'
+    AccountAdditionalInfoSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AccountAdditionalInfo'
+    ContactGroupSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ContactGroup'
+    AccountDocumentListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/AccountDocument'
+    ReceiptListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Receipt'
+    NewsListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              news:
+                type: array
+                items:
+                  $ref: '#/components/schemas/News'
+              meta:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                required:
+                  - pagination
+            required:
+              - news
+              - meta
+    NewsSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailNews'
+    MeterStatisticsListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MeterStatistics'
+    MeterTariffListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/MeterTariff'
+    MeterListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Meter'
+    ProjectTypeSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ProjectType'
+    ProjectSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailProject'
+    ArticleListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Article'
+    ArticleSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailArticle'
+    BannerSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Banner'
+    AdSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Ad'
+    ClaimCatalogueThemeSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClaimCatalogueTheme'
+    GeneralSettingsSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GeneralSettings'
+    ClaimCatalogueItemListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ClaimCatalogueItem'
+    ClaimCatalogueSearchSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              categories:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClaimCatalogueItem'
+              services:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClaimCatalogueItem'
+            required:
+              - categories
+              - services
+    ClaimCatalogueItemSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClaimCatalogueItem'
+    ClaimMessageListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/ClaimMessage'
+    ClaimMessageSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ClaimMessage'
+    ClaimListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Claim'
+    ClaimSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DetailClaim'
+    LastClaimSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              account_number:
+                type: string
+                description: Номер лицевого счёта
+                example: "7715801857552"
+              claim:
+                $ref: '#/components/schemas/DetailClaim'
+            required:
+              - account_number
+              - claim
+    SuccessfulActionCities:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/City'
+    LoanOfferListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/LoanOffer'
+    RelationshipInviteListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/RelationshipInvite'
+    UserDocumentsSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/UserDocument'
+    UserDocumentByIdSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/pdf:
+          schema:
+            type: string
+            format: binary
+    InstructionsSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Instruction'
+    DemandListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Demand'
+    DemandSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/DetailDemand'
+    BankListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Bank'
+    NotificationsListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              notifications:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+              meta:
+                type: object
+                properties:
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+                required:
+                  - pagination
+            required:
+              - notifications
+              - meta
+    FavoritePropertiesListSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/FavoriteProperty'
+    DeletingReasonsSuccessfulAction:
+      description: Получен список причин удаления аккаунта
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/DeletingReason'
+    NewClaimMessagesStateSuccessfulAction:
+      description: Успешная операция
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              has_new_messages:
+                type: boolean
+                description: Флаг наличия новых сообщений
+            required:
+              - has_new_messages
+    PasswordResetSuccess:
+      description: Пароль успешно восстановлен
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+            example:
+              token: 17|qm9dVbY2IwrC0iA6aEmThTyXcgE9ODPy55liUxk0
+            required:
+              - token
+    RegisteredSuccess:
+      description: Успешная регистрацаия
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+              expires_at:
+                type: integer
+                nullable: true
+                description: Unix Timestamp
+            example:
+              token: 17|qm9dVbY2IwrC0iA6aEmThTyXcgE9ODPy55liUxk0
+              expires_at: 1644571625
+            required:
+              - token
+              - expires_at
+    LoginSuccess:
+      description: Успешная авторизация
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token:
+                type: string
+              expires_at:
+                type: integer
+                nullable: true
+                description: Unix Timestamp
+            example:
+              token: 17|qm9dVbY2IwrC0iA6aEmThTyXcgE9ODPy55liUxk0
+              expires_at: 1644571625
+            required:
+              - token
+              - expires_at
+    VerificationCodeSendingSuccess:
+      description: Проверочный код отправлен
+      headers:
+        X-RateLimit-VerificationCode-Daily-Limit:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyLimit"
+        X-RateLimit-VerificationCode-Daily-Remaining:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyRemaining"
+        X-RateLimit-VerificationCode-Daily-Timer:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyTimer"
+        X-RateLimit-VerificationCode-Minute-Limit:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteLimit"
+        X-RateLimit-VerificationCode-Minute-Remaining:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteRemaining"
+        X-RateLimit-VerificationCode-Minute-Timer:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteTimer"
+    VerificationCodeSendingTooManyAttempts:
+      description: Превышено допустимое количество попыток отправки
+      headers:
+        X-RateLimit-VerificationCode-Daily-Limit:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyLimit"
+        X-RateLimit-VerificationCode-Daily-Remaining:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyRemaining"
+        X-RateLimit-VerificationCode-Daily-Timer:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyTimer"
+        X-RateLimit-VerificationCode-Daily-Retry-After:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyRetryAfter"
+        X-RateLimit-VerificationCode-Daily-Reset:
+          $ref: "#/components/headers/XRateLimitVerificationCodeDailyReset"
+        X-RateLimit-VerificationCode-Minute-Limit:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteLimit"
+        X-RateLimit-VerificationCode-Minute-Remaining:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteRemaining"
+        X-RateLimit-VerificationCode-Minute-Timer:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteTimer"
+        X-RateLimit-VerificationCode-Minute-Retry-After:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteRetryAfter"
+        X-RateLimit-VerificationCode-Minute-Reset:
+          $ref: "#/components/headers/XRateLimitVerificationCodeMinuteReset"
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token

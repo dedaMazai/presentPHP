@@ -1,0 +1,24 @@
+[DEFAULT]
+ignoreself = false
+ignoreip = 10.77.14.1/24
+[sshd]
+enabled = false
+
+[sshd-ddos]
+enabled = false
+
+[nginx-401]
+enabled = true
+filter = nginx-401
+bantime = 1h
+findtime = 10m
+maxretry = 17
+logpath = %(nginx_access_log)s
+
+[nginx-404]
+enabled = true
+filter = nginx-404
+bantime = 1h
+findtime = 10m
+maxretry = 30
+logpath = %(nginx_access_log)s

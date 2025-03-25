@@ -1,0 +1,4 @@
+[DEFAULT]
+
+nginx_error_log = /root/app/log/error.log
+nginx_access_log = /root/app/log/access.log

@@ -1,0 +1,58 @@
+{
+    "id": "03a7be6d-52ed-ec11-bba9-005056bfae62",
+    "claimNumber": 50,
+    "personalAccount": "7757200175389",
+    "incidentClassificationCode": {
+        "code": "4",
+        "name": "Маркетплейс"
+    },
+    "createdOn": "2022-06-16T08:58:03+03:00",
+    "modifiedOn": "2022-06-20T13:39:54+03:00",
+    "arrivalDate": "2022-08-18T12:10:00+03:00",
+    "services": {},
+    "status": {
+        "code": "100000001",
+        "name": "Запланирована"
+    },
+    "invoiceStatus": {
+        "code": "1",
+        "name": "Оплачен"
+    },
+    "articleId": "16949939-67b3-e411-96e0-005056be523b",
+    "articleCode": "К1-01-05-01-017",
+    "articleTypeCode": {
+        "code": "2",
+        "name": "Жилое помещение"
+    },
+    "totalPaymentKop": 10000,
+    "totalPayment": 100.0,
+    "sellerTypeCode": {
+        "code": "2",
+        "name": "Доп. услуги УК"
+    },
+    "accountServiceSeller": {
+        "code": "ade6cd34-41da-eb11-8148-00155d004303",
+        "name": "МВ Строй"
+    },
+    "vendor": {
+        "code": "33a66250-5d1f-4c02-b424-4711a4a9847d",
+        "name": "ЛАЙФ-КОМ ООО"
+    },
+    "scheduledStart": "2022-06-17T05:00:00+03:00",
+    "scheduledEnd": "2022-06-17T07:00:00+03:00",
+    "executor": {
+        "name": "Волков, Игорь",
+        "jobTitle": "Бухгалтер"
+    },
+    "declarantId": "acc0b64d-f9c5-ec11-bba9-005056bfae62",
+    "accountUkId": {
+        "code": "b1306d70-22e5-4f1f-a106-6068ce11a8ce",
+        "name": "ПС БС ООО"
+    },
+    "accountUkServiceSellerId": {
+        "code": "33a66250-5d1f-4c02-b424-4711a4a9847d",
+        "name": "ЛАЙФ-КОМ ООО"
+    },
+    "typeMessage": 1,
+    "message": "Заявка упешно получена."
+}

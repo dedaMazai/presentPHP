@@ -1,0 +1,261 @@
+openapi: 3.0.3
+info:
+  title: Pioneer Inernal API
+  version: 1.0.0
+servers:
+  - url: https://localhost:8080/api/internal
+    description: Local server
+tags:
+  - name: Уведомления
+paths:
+  /users/{userCrmId}/notifications:
+    parameters:
+      - in: path
+        name: userCrmId
+        required: true
+        schema:
+          type: string
+          description: ID пользователя в CRM
+          example: "07cebd4c-25b3-e711-9404-005056bf3b92"
+    post:
+      summary: Отправить уведомление
+      description: |
+        Отправить push-уведомление для пользователя
+
+        **Примеры**
+
+        Изменился статус заявки
+        ```
+        curl --location --request POST 'https://localhost:8080/api/internal/users/07cebd4c-25b3-e711-9404-005056bf3b92/notifications' \
+        --header 'X-Access-Key: test123' \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+            "title": "Начало и завершение исполнения заявки",
+            "text": "Статус заявки изменился",
+            "type": "uk",
+            "action": {
+                "type": "claim_status_changed",
+                "payload": {
+                    "claim_id": "a9e5b66b-be84-ec11-bba9-005056bf672e"
+                }
+            }
+        }'
+        ```
+        Задолженность ЖКУ
+        ```
+        curl --location --request POST 'https://localhost:8080/api/internal/users/07cebd4c-25b3-e711-9404-005056bf3b92/notifications' \
+        --header 'X-Access-Key: test123' \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+            "title": "У Вас задолженность",
+            "text": "Погасите задолженность",
+            "type": "uk",
+            "action": {
+                "type": "debt",
+                "payload": {
+                    "account_number": "7705950065862"
+                }
+            }
+        }'
+        ```
+        Поздравление с днем рождения
+        ```
+        curl --location --request POST 'https://localhost:8080/api/internal/users/07cebd4c-25b3-e711-9404-005056bf3b92/notifications' \
+        --header 'X-Access-Key: test123' \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+            "title": "Поздравляем с Днём Рожденья!",
+            "text": "Уважаемый Денис Анатольевич! Поздравляем Вас с Днём Рожденья!",
+            "type": "uk",
+            "action": {
+                "type": "birthday_link",
+                "payload": {
+                    "url": "https://site.com"
+                }
+            }
+        }'
+        ```
+        Срок страховки истекает
+        ```
+        curl --location --request POST 'https://localhost:8080/api/internal/users/07cebd4c-25b3-e711-9404-005056bf3b92/notifications' \
+        --header 'X-Access-Key: test123' \
+        --header 'Content-Type: application/json' \
+        --data-raw '{
+            "title": "Сроки страховки истекает",
+            "text": "Уважаемый Денис Анатольевич! Напоминаем, что срок вашей страховки истекает 13.11.2021. Получить консультацию и написать запрос о продлении можно по адресу",
+            "type": "uk",
+            "action": {
+                "type": "insurance_expire_link",
+                "payload": {
+                    "url": "https://site.com"
+                }
+            }
+        }'
+        ```
+      tags:
+        - Уведомления
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Заголовок
+                  example: Начало и завершение исполнения заявки
+                text:
+                  type: string
+                  description: Текст
+                  example: Статус Вашей заявки изменился на Исполнена
+                type:
+                  $ref: "#/components/schemas/NotificationMessagesType"
+                action:
+                  $ref: "#/components/schemas/Action"
+              required:
+                - title
+                - text
+                - type
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /users/{userCrmId}/claim/{claimId}/manager-messages:
+    parameters:
+      - in: path
+        name: userCrmId
+        required: true
+        schema:
+          type: string
+          description: ID пользователя в CRM
+          example: "07cebd4c-25b3-e711-9404-005056bf3b92"
+      - in: path
+        name: claimId
+        required: true
+        schema:
+          type: string
+          description: ID заявки в CRM
+          example: "a9e5b66b-be84-ec11-bba9-005056bf672e"
+    post:
+      summary: Уведомить пользователя о новом сообщении в заявке
+      description: Уведомить пользователя о новом сообщении в заявке
+      tags:
+        - Уведомления
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: Заголовок
+                text:
+                  type: string
+                  description: Текст
+                account_number:
+                  type: string
+                  description: Номер лицевого счета
+              required:
+                - title
+                - text
+                - account_number
+      responses:
+        '204':
+          $ref: "#/components/responses/SuccessfulAction"
+        '422':
+          $ref: "#/components/responses/ValidationError"
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  schemas:
+    ActionType:
+      type: string
+      description: Тип перехода внутри приложения
+      enum:
+        - claim_status_changed
+      example: claim_status_changed
+    ActionPayload:
+      type: object
+      description: |
+        Данные для перехода
+
+        Для типа claim_status_changed в payload нужно передать обязательный параметр claim_id
+        ```
+        "payload": {
+            "claim_id": "a9e5b66b-be84-ec11-bba9-005056bf672e"
+        }
+        ```
+      example:
+        claim_id: a9e5b66b-be84-ec11-bba9-005056bf672e
+    NotificationMessagesType:
+      type: string
+      description: |
+        Тип уведомления
+        - marketing_activity – Маркетинговая активность
+        - purchase_process – Процесс покупки
+        - uk – Обслуживание в УК
+      example: uk
+      enum:
+          - marketing_activity
+          - purchase_process
+          - uk
+    Action:
+      type: object
+      description: Объект перехода
+      properties:
+        type:
+          $ref: '#/components/schemas/ActionType'
+        payload:
+          $ref: '#/components/schemas/ActionPayload'
+      required:
+        - type
+  responses:
+    ValidationError:
+      description: Неверные параметры запроса
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              errors:
+                type: object
+                properties:
+                  field_name:
+                    type: array
+                    items:
+                      type: string
+            example:
+              message: The given data was invalid.
+              errors:
+                phone:
+                  - The phone field is required.
+            required:
+              - message
+              - errors
+    UserUnauthorized:
+      description: Ошибка авторизации
+    ActionUnauthorized:
+      description: Действие запрещено
+    Forbidden:
+      description: Доступ запрещен
+    SuccessfulAction:
+      description: Успешная операция
+    ConflictAction:
+      description: Конфликт
+    NotFound:
+      description: Объект не найден
+  securitySchemes:
+    ApiAccessKey:
+      type: apiKey
+      in: header
+      name: X-Access-Key
+security:
+  - ApiAccessKey: []

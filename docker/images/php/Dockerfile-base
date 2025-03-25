@@ -1,0 +1,20 @@
+ARG PHP_VERSION=8.1-fpm-alpine
+FROM php:${PHP_VERSION} as php-base
+
+WORKDIR /var/www/project
+
+# postgresql
+RUN set -ex && apk add --no-cache postgresql-dev && docker-php-ext-install pdo_pgsql
+
+# zip
+RUN apk add --no-cache libzip-dev && docker-php-ext-install zip
+
+# xdebug
+RUN apk add --no-cache $PHPIZE_DEPS && pecl install xdebug-3.1.4 && docker-php-ext-enable xdebug
+
+RUN apk add --no-cache freetype-dev libjpeg-turbo-dev libpng-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd
+
+# composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer

@@ -1,0 +1,50 @@
+{
+    "id": "0a55c15b-c9e8-ec11-bba9-005056bfae62",
+    "claimNumber": 43,
+    "personalAccount": "7739970969846",
+    "incidentClassificationCode": {
+        "code": "1",
+        "name": "Оставить заявку"
+    },
+    "createdOn": "2022-06-10T14:26:47+03:00",
+    "modifiedOn": "2022-06-10T14:31:51+03:00",
+    "arrivalDate": "2022-06-10T15:11:00+03:00",
+    "services": [
+        {
+            "id": "1455c15b-c9e8-ec11-bba9-005056bfae62",
+            "serviceCatalogUkId": "7b69b0f2-4ec1-ec11-bba9-005056bfae62",
+            "name": "Не работает освещение МОП",
+            "quantity": 1.0000000000,
+            "amountKop": 0,
+            "amount": 0.0000,
+            "costKop": 0,
+            "cost": 0.0000,
+            "claimId": "0a55c15b-c9e8-ec11-bba9-005056bfae62",
+            "orderNumber": 1
+        }
+    ],
+    "description": "Test",
+    "status": {
+        "code": "100000001",
+        "name": "Запланирована"
+    },
+    "articleId": "a8595691-9c1b-e711-93fe-005056bf3b92",
+    "articleCode": "П4-2-411",
+    "articleTypeCode": {
+        "code": "4",
+        "name": "Машиноместо"
+    },
+    "vendor": {
+        "code": "4f3cd7d7-be28-4274-85da-3466d656fe19",
+        "name": "БС-1 СЕРВИС ООО"
+    },
+    "declarantId": "fced1ff2-80cc-e411-b205-005056be523b",
+    "accountUkId": {
+        "code": "4f3cd7d7-be28-4274-85da-3466d656fe19",
+        "name": "БС-1 СЕРВИС ООО"
+    },
+    "accountUkServiceSellerId": {
+        "code": "33a66250-5d1f-4c02-b424-4711a4a9847d",
+        "name": "ЛАЙФ-КОМ ООО"
+    }
+}

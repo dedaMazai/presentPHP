@@ -1,0 +1,18 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "ru.pioneer.my",
+    "sha256_cert_fingerprints":
+    ["34:B9:1C:BE:4C:74:CD:62:2F:47:B3:C6:3A:FE:CC:1C:D1:4B:E2:7B:B6:D6:02:3B:29:95:36:06:F1:9B:36:FB"]
+  }
+},
+{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "ru.pioneer.my.debug",
+    "sha256_cert_fingerprints":
+    ["DA:97:3A:55:08:C9:A2:30:FE:0C:96:7C:51:35:B9:5E:DB:E3:08:8D:4C:CB:C4:A2:62:DD:23:5F:43:18:BE:01"]
+  }
+}]

@@ -1,0 +1,18 @@
+grumphp:
+  tasks:
+    phpcs:
+      standard: "PSR2"
+      ignore_patterns:
+        - "/database/*"
+        - "/resources/*"
+        - "/tests/*"
+        - "/bootstrap/*"
+    git_blacklist:
+      keywords:
+        - "\\Wdd("
+        - "var_dump("
+        - "die("
+        - "exit("
+        - "die;"
+        - "exit;"
+
